@@ -1,0 +1,31 @@
+{
+	"name": "jalthoff/radfahrschule",
+	"description": "Kurse der Radfahrschule als Nextcloud-App",
+	"license": "AGPL-3.0-or-later",
+	"require": {
+		"php": ">=8.3"
+	},
+	"require-dev": {
+		"doctrine/dbal": "^3.10",
+		"nextcloud/ocp": "^32.0",
+		"phpstan/phpstan": "^2.2",
+		"phpunit/phpunit": "^13"
+	},
+	"autoload": {
+		"psr-4": {
+			"OCA\\Radfahrschule\\": "lib/"
+		}
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"OCA\\Radfahrschule\\Tests\\": "tests/",
+			"OCP\\": "vendor/nextcloud/ocp/OCP/"
+		}
+	},
+	"scripts": {
+		"test": "phpunit"
+	},
+	"config": {
+		"sort-packages": true
+	}
+}

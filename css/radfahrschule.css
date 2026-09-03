@@ -1,0 +1,179 @@
+/* Die Gestaltung der App.
+ *
+ * Nextcloud 32 hat keine Regel fuer table.grid mehr - eine Tabelle ohne
+ * eigene Regeln erscheint als nackte HTML-Tabelle. Die Variablen sind die
+ * des Servers; sie tragen den hellen wie den dunklen Modus, ohne dass hier
+ * eine Farbe fest steht.
+ */
+
+.rf-abschnitt {
+	padding: 22px 30px;
+	max-width: 900px;
+}
+
+.rf-tabelle {
+	width: 100%;
+	border-collapse: collapse;
+	margin-top: 12px;
+}
+
+.rf-tabelle th,
+.rf-tabelle td {
+	padding: 8px 12px;
+	text-align: left;
+	border-bottom: 1px solid var(--color-border);
+	vertical-align: top;
+	/* Nextclouds Server-CSS setzt td auf nowrap. Ohne diese Zeile bricht
+	 * die Fristzeile nirgends um und laeuft auf dem Telefon aus dem
+	 * Bild. */
+	white-space: normal;
+}
+
+.rf-tabelle th {
+	font-weight: bold;
+	color: var(--color-text-maxcontrast);
+}
+
+/* Die Zahlenspalten rechtsbuendig, damit sich Anmeldungen und Wartende
+ * untereinander vergleichen lassen.
+ *
+ * Der Tabellenname MUSS davorstehen: .rf-tabelle td ist zwei Klassen stark,
+ * .rf-zahl allein nur eine - und verlor deshalb gegen text-align: left. Im
+ * Browser stand die Zahl links, ohne dass etwas fehlschlug. */
+.rf-tabelle .rf-zahl {
+	text-align: right;
+	white-space: nowrap;
+}
+
+/* Auf dem Telefon liefe die Fristspalte sonst aus dem Bild. Die Tabelle
+ * scrollt deshalb in ihrem eigenen Kasten, statt die Seite mitzunehmen. */
+.rf-tabellenrahmen {
+	overflow-x: auto;
+}
+
+/* Auf dem Telefon wird aus jeder Zeile ein Block.
+ *
+ * Der scrollende Kasten allein genuegt dort nicht: Er haelt zwar die Seite
+ * ruhig, aber die Fristspalte liegt ausserhalb des Bildes - und genau sie
+ * sagt, was zu tun ist. Ein Hinweis, dass man quer wischen kann, steht
+ * nirgends.
+ *
+ * Die Beschriftung kommt aus data-spalte am <td>. Sie steht im Markup und
+ * nicht hier, damit eine neue Spalte nicht an zwei Stellen nachgezogen
+ * werden muss. */
+@media (max-width: 600px) {
+	.rf-abschnitt {
+		padding: 16px;
+	}
+
+	/* Der scrollende Kasten muss hier aus dem Weg: Sonst behaelt die
+	 * Tabelle darin ihre Breite, und die Fristzeile wird abgeschnitten
+	 * statt umzubrechen. */
+	.rf-tabellenrahmen {
+		overflow-x: visible;
+	}
+
+	.rf-tabelle,
+	.rf-tabelle tbody {
+		display: block;
+		width: 100%;
+	}
+
+	.rf-tabelle thead {
+		display: none;
+	}
+
+	.rf-tabelle tr {
+		display: block;
+		padding: 10px 0;
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.rf-tabelle td,
+	.rf-tabelle th {
+		display: block;
+		border: none;
+		padding: 2px 0;
+	}
+
+	.rf-tabelle .rf-zahl {
+		text-align: left;
+	}
+
+	.rf-tabelle td[data-spalte]::before {
+		content: attr(data-spalte) ": ";
+		font-weight: bold;
+		color: var(--color-text-maxcontrast);
+	}
+}
+
+.rf-hinweis {
+	margin: 12px 0;
+}
+
+.rf-warnung {
+	margin: 12px 0;
+	padding: 10px 14px;
+	border-left: 4px solid var(--color-warning);
+	background-color: var(--color-background-hover);
+}
+
+.rf-feld {
+	display: block;
+	margin: 14px 0;
+}
+
+.rf-feld label {
+	display: block;
+	margin-bottom: 4px;
+	font-weight: bold;
+}
+
+.rf-knopfzeile {
+	margin-top: 22px;
+	display: flex;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+/* Die Meldung eines abgebrochenen Laufs nennt in eigenen Zeilen, was
+ * stehengeblieben ist. In einem <p> fraesse HTML die Umbrueche - genau
+ * dann, wenn jemand die Links ablesen und aufraeumen muss. */
+.rf-abbruch {
+	white-space: pre-wrap;
+	font-family: inherit;
+	margin: 12px 0;
+}
+
+/* Die Einstellungsseite. Nextclouds Vorgabebreite fuer ein Eingabefeld ist
+ * so schmal, dass eine Instanz-Adresse abgeschnitten ankommt - man sieht
+ * nicht mehr, was drinsteht. */
+.rf-einstellungen input[type="url"],
+.rf-einstellungen input[type="text"],
+.rf-einstellungen input[type="password"] {
+	width: 100%;
+	max-width: 26rem;
+}
+
+/* Feld und Auge-Knopf in einer Zeile. Der Knopf entsteht erst durch
+ * js/einstellungen.js; ohne JavaScript steht hier nur das Feld. */
+.rf-passwortzeile {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	max-width: 26rem;
+}
+
+/* Die Anleitung zum App-Passwort. Nextclouds settings-hint ist gedaempft;
+ * die Schritte sollen genauso zurueckhaltend wirken, aber lesbar bleiben. */
+.rf-anleitung {
+	margin: 4px 0 16px 0;
+	padding-left: 22px;
+	max-width: 42rem;
+	line-height: 1.6;
+	opacity: .8;
+}
+
+.rf-anleitung li {
+	margin-bottom: 4px;
+}

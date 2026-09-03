@@ -1,0 +1,16 @@
+# Statische Analyse.
+parameters:
+	# Stufe 5 ist der Stand, den der Code ohne Nacharbeit haelt. Stufe 6
+	# verlangt Generics-Angaben in PHPDoc (@return array<string, int> statt
+	# array) - das sind rund dreissig Stellen und eigene Arbeit, kein
+	# Befund.
+	level: 5
+
+	paths:
+		- lib
+		- templates
+
+	# Nur einlesen, nicht pruefen: die Datei bildet Nextclouds private
+	# Template-Funktionen nach, damit p() und print_unescaped() bekannt sind.
+	scanFiles:
+		- stubs/nextcloud-template-funktionen.php
