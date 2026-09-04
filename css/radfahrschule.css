@@ -129,6 +129,14 @@
 	font-weight: bold;
 }
 
+/* Nextclouds Vorgabebreite fasst ein deutsches Datum knapp nicht: Neben
+ * den zehn Zeichen steht im Feld noch das Kalendersymbol des Browsers.
+ * Die Ziffer 0 ist breiter als die 1, deshalb faellt es nur bei manchen
+ * Tagen auf - "05.04.2027" laeuft links heraus, "10.04.2027" passt. */
+.rf-feld input[type="date"] {
+	min-width: 10rem;
+}
+
 .rf-knopfzeile {
 	margin-top: 22px;
 	display: flex;

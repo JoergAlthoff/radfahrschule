@@ -31,7 +31,7 @@ class UebersichtController extends Controller {
 	 * Es fuellt "application", und die Ueberschrift benutzt das nur, wenn
 	 * daneben ein pageTitle steht.
 	 */
-	private const string SEITENTITEL = 'Radfahrschule';
+	private const SEITENTITEL = 'Radfahrschule';
 
 	public function __construct(
 		string $appName,

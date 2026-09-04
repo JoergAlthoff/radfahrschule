@@ -44,7 +44,7 @@ class Zeitzone {
 	 *
 	 * UTC, weil es keine Sommerzeit kennt. Berlin springt zweimal im Jahr.
 	 */
-	public const string ABLAGE = 'UTC';
+	public const ABLAGE = 'UTC';
 
 	/** Welchen Kalendertag zeigt die Uhr gerade? Siehe oben. */
 	public function desVereins(): DateTimeZone {

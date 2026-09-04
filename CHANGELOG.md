@@ -7,6 +7,31 @@ die Nummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 Solange die erste Stelle `0` ist, darf sich Verhalten auch in einer
 Nebenversion ändern.
 
+## [0.15.1] — 2026-09-04
+
+### Hinzugefügt
+
+- **Die Store-Seite zeigt Zusammenfassung und Beschreibung.** Der App Store
+  legt diese Texte je Sprache ab und verlangt Englisch. Ohne `lang`-Angabe
+  kommt die `info.xml` durch die Prüfung, füllt die Seite aber nicht.
+- **Drei Bildschirmfotos** in `info.xml`: die Übersicht, das Anlegen und
+  die Kontrollseite davor.
+
+### Geändert
+
+- **Die App läuft ab PHP 8.2 statt erst ab 8.3.** Nextcloud filtert Apps
+  im Store nach dieser Angabe: Auf einer Instanz mit PHP 8.2 war sie
+  kommentarlos nicht auffindbar. Drei Klassenkonstanten trugen eine
+  Typangabe, die erst 8.3 kennt.
+
+### Behoben
+
+- **Die Beschreibung versprach ein automatisches Löschen.** Die App nennt
+  den Tag, an dem die Anmeldedaten weg sein müssen; gelöscht wird von Hand.
+- **In Chrome lief ein Datum aus seinem Feld heraus.** Nextclouds
+  Vorgabebreite fasst neben den zehn Zeichen das Kalendersymbol nicht mehr.
+  Sichtbar wurde es nur an Tagen mit führender Null.
+
 ## [0.15.0] — 2026-09-02
 
 ### Hinzugefügt
@@ -16,6 +41,8 @@ Nebenversion ändern.
   keinen Papierkorb hat. Erst der Knopf dort löscht.
 - **Die README nennt den Urheber.** Unter der Lizenz steht die
   Copyright-Zeile, die die AGPL im Anhang vorsieht.
+- **`info.xml` nennt den Ort für Fehlermeldungen.** Das Element `bugs` ist
+  im Schema des App Stores Pflicht; ohne es wird das Release abgelehnt.
 
 ### Geändert
 
