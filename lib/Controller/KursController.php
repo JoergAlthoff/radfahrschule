@@ -62,9 +62,10 @@ class KursController extends Controller {
 				. 'Nextcloud-Gruppe steht — oder Administrator ist.');
 		}
 
-		// Ein Platzhalter matcht genau ein Pfadsegment, und /kurs/neu hat
-		// ebenso zwei. Statt sich auf die Reihenfolge der Registrierung zu
-		// verlassen, prueft der Controller den Wert selbst.
+		// Ein Platzhalter matcht genau ein Pfadsegment. Welche Route ein
+		// zweisegmentiger Pfad trifft, haengt von der Einlesereihenfolge ab
+		// und ist je Instanz anders. Der Controller prueft den Wert deshalb
+		// selbst, statt sich darauf zu verlassen.
 		if (!ctype_digit($id)) {
 			return $this->meldung('Unbekannter Kurs', 'Das ist keine Formularnummer.');
 		}

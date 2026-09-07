@@ -3,9 +3,11 @@
 Eine Nextcloud-App, die die Kurse einer Radfahrschule verwaltet.
 
 Jeder Kurs besteht aus zwei Nextcloud-Formularen: einem für die Anmeldung
-und einem für die Warteliste. Die App legt dieses Paar aus Vorlagen an,
-zeigt alle laufenden Kurse mit ihren Zählerständen, verschiebt einen Kurs
-auf einen anderen Termin und löscht ihn nach Ablauf der Aufbewahrungsfrist.
+und einem für die Warteliste. Die App legt dieses Paar aus Vorlagen an und
+zeigt alle laufenden Kurse mit ihren Zählerständen. Für jeden Kurs nennt sie
+den Tag, an dem die Anmeldedaten gelöscht sein müssen. Kurse lassen sich auf
+einen anderen Termin verschieben und wieder entfernen; gelöscht wird von
+Hand, die App tut das nicht von selbst.
 
 Ohne die App macht das jemand von Hand — sechs Schritte je Kurs, und ein
 Vertippen bei der Jahreszahl fällt erst auf, wenn sich niemand anmeldet.
@@ -40,7 +42,11 @@ Dazu die App **Formulare** (`forms`), aktiviert und lauffähig.
 
 ## Installation
 
-Die App aktivieren wie jede andere: Administrationseinstellungen → Apps.
+Die App steht im Nextcloud App Store. Unter
+Administrationseinstellungen → Apps → Organisation steht sie mit
+**Herunterladen und aktivieren**; Nextcloud holt das Archiv selbst.
+
+Sie braucht Nextcloud 32 und PHP 8.2 oder neuer.
 
 Danach einrichten unter **Administrationseinstellungen → Radfahrschule**.
 Zwei Blöcke.

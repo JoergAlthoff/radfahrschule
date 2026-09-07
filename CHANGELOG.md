@@ -7,6 +7,31 @@ die Nummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 Solange die erste Stelle `0` ist, darf sich Verhalten auch in einer
 Nebenversion ändern.
 
+## [0.15.2] — 2026-09-07
+
+### Behoben
+
+- **Das Anlegeformular war auf manchen Instanzen nicht erreichbar.** Statt
+  des Formulars kam „Unbekannter Kurs — Das ist keine Formularnummer".
+  Seine Adresse `/kurs/neu` hatte ebenso zwei Segmente wie die Kursseite
+  `/kurs/{id}`, und welche von beiden gewinnt, entscheidet die Reihenfolge,
+  in der Nextcloud die Controller einliest. Die kommt aus dem Dateisystem
+  und ist je Instanz anders. Das Formular liegt jetzt unter `/neuer-kurs`
+  und überschneidet sich mit nichts mehr. Wer die alte Adresse als
+  Lesezeichen hat, muss es erneuern.
+- **Die README versprach ein automatisches Löschen.** Dieselbe falsche
+  Zusage stand schon in der Beschreibung; die App nennt nur den Tag, an dem
+  die Anmeldedaten weg sein müssen.
+- **Der Eintrag zu 0.15.1 nannte einen falschen Grund.** Die App fehlte auf
+  einer Instanz nicht wegen deren PHP-Version, sondern weil deren
+  App-Katalog seit über einer Woche nicht mehr erneuert wurde. Der Wechsel
+  auf PHP 8.2 bleibt richtig, hat das Problem aber nicht gelöst.
+
+### Hinzugefügt
+
+- **Die README nennt den Weg über den App Store** und die Voraussetzungen
+  Nextcloud 32 und PHP 8.2.
+
 ## [0.15.1] — 2026-09-04
 
 ### Hinzugefügt

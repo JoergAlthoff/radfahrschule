@@ -55,7 +55,7 @@ class AnlegenController extends Controller {
 
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[FrontpageRoute(verb: 'GET', url: '/kurs/neu')]
+	#[FrontpageRoute(verb: 'GET', url: '/neuer-kurs')]
 	public function formular(): TemplateResponse {
 		$this->navigationManager->setActiveEntry($this->appName);
 

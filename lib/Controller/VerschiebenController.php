@@ -72,11 +72,12 @@ class VerschiebenController extends Controller {
 		// eine solche Adresse ab.
 		//
 		// Und eine GET-Route unter /kurs/ faellt in die Detailroute
-		// /kurs/{id} des KursController: Der wird alphabetisch VOR
-		// VerschiebenController eingelesen und gewinnt. /kurs/neu geht nur
-		// deshalb, weil AnlegenController noch davor kommt - wer sich darauf
-		// verlaesst, baut auf die Sortierung von Dateinamen. Eine POST-Route
-		// kollidiert damit nicht.
+		// /kurs/{id} des KursController. Welche von beiden gewinnt, haengt
+		// von der Reihenfolge ab, in der Nextcloud die Controller-Dateien
+		// einliest - und die kommt aus dem Dateisystem, nicht aus einer
+		// Sortierung (DirectoryIterator in Router::getAttributeRoutes).
+		// Sie ist damit je Instanz anders. Eine GET-Route gehoert deshalb
+		// nicht unter /kurs/; eine POST-Route kollidiert nicht.
 		$kennung = (string)$this->request->getParam('kennung', '');
 		if ($kennung === '') {
 			return $this->meldung('Die Angaben passen nicht',

@@ -147,8 +147,9 @@ final class KursControllerTest extends TestCase {
 	}
 
 	/**
-	 * /kurs/neu hat ebenso zwei Segmente wie /kurs/{id}. Statt sich auf die
-	 * Reihenfolge der Routen zu verlassen, prueft der Controller den Wert.
+	 * Ein zweisegmentiger Pfad unter /kurs/ koennte auf eine andere Route
+	 * gemuenzt sein. Welche gewinnt, ist je Instanz anders - der Controller
+	 * prueft den Wert deshalb selbst.
 	 */
 	public function testEinNichtNumerischesSegmentGibtEineMeldung(): void {
 		$antwort = $this->controller()->zeige('neu');
