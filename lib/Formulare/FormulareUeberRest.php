@@ -7,6 +7,7 @@ namespace OCA\Radfahrschule\Formulare;
 use JsonException;
 use Throwable;
 use OCA\Radfahrschule\Einstellungen\Zugangsdaten;
+use OCP\Http\Client\IClient;
 use OCP\Http\Client\IClientService;
 use Psr\Log\LoggerInterface;
 
@@ -24,6 +25,16 @@ final readonly class FormulareUeberRest implements Formulare {
 	private const KLON = '/ocs/v2.php/apps/forms/api/v3/forms?fromId=%d';
 	private const FRAGE = '/ocs/v2.php/apps/forms/api/v3/forms/%d/questions/%d';
 	private const FREIGABEN = '/ocs/v2.php/apps/forms/api/v3/forms/%d/shares';
+
+	/**
+	 * Was gesagt wird, wenn sich nichts Genaueres sagen laesst.
+	 *
+	 * Er nennt Adresse UND Zugangsdaten, weil hier wirklich keines von
+	 * beiden ausgeschlossen ist.
+	 */
+	private const ALLGEMEIN = 'Nextcloud Forms antwortet nicht. Bitte Adresse '
+		. 'und Zugangsdaten in den Einstellungen prüfen; Einzelheiten stehen '
+		. 'im Nextcloud-Protokoll.';
 
 	public function __construct(
 		private IClientService $clientService,
@@ -172,14 +183,45 @@ final readonly class FormulareUeberRest implements Formulare {
 			]);
 
 			throw new FormulareNichtErreichbar(
-				'Nextcloud Forms antwortet nicht. Bitte Adresse und '
-				. 'Zugangsdaten in den Einstellungen prüfen; Einzelheiten '
-				. 'stehen im Nextcloud-Protokoll.',
-				previous: $fehler,
-			);
+				$this->grundFuer($client, $fehler), previous: $fehler);
 		}
 
 		return $this->datenAus($response->getBody());
+	}
+
+	/**
+	 * Sagt, WAS nicht stimmt, soweit die Antwort es hergibt.
+	 *
+	 * Ein Satz, der Adresse und Zugangsdaten zugleich nennt, entscheidet
+	 * nichts: Wer sich im Kontonamen vertippt, sucht danach auch die
+	 * Adresse ab. Der HTTP-Status weiss es genauer. Ein falsches Konto gibt
+	 * 401, ein Pfad, den es nicht gibt, 404.
+	 *
+	 * getResponseFromThrowable wirft die Ausnahme laut Schnittstelle
+	 * weiter, wenn keine HTTP-Antwort dabei war. Das ist kein Sonderfall,
+	 * sondern der haeufigste: Ein unbekannter Name und eine abgewiesene
+	 * Verbindung kommen nie bis zu einem Status. Dann bleibt es beim
+	 * allgemeinen Satz.
+	 *
+	 * Ueber 403 und 5xx wird NICHTS behauptet. Ein 500 heisst, dass Forms
+	 * da ist und nicht kann - daraus folgt fuer die Zugangsdaten nichts.
+	 */
+	private function grundFuer(IClient $client, Throwable $fehler): string {
+		try {
+			$status = $client->getResponseFromThrowable($fehler)->getStatusCode();
+		} catch (Throwable) {
+			return self::ALLGEMEIN;
+		}
+
+		return match ($status) {
+			401 => 'Das Dienstkonto oder das App-Passwort stimmt nicht. Beides '
+				. 'steht in den Einstellungen. Das App-Passwort stellt '
+				. 'Nextcloud beim Dienstkonto unter „Sicherheit" aus.',
+			404 => 'Unter dieser Adresse antwortet Forms nicht. Bitte die '
+				. 'Adresse der Instanz in den Einstellungen prüfen. Und ob '
+				. 'die App „Formulare" dort läuft.',
+			default => self::ALLGEMEIN,
+		};
 	}
 
 	/**

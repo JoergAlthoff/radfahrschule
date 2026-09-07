@@ -6,6 +6,8 @@ namespace OCA\Radfahrschule\Tests\Settings;
 
 use OCA\Radfahrschule\Einstellungen\Betreiberangaben;
 use OCA\Radfahrschule\Einstellungen\Zugangsdaten;
+use OCA\Radfahrschule\Formulare\Formulare;
+use OCA\Radfahrschule\Formulare\FormulareNichtErreichbar;
 use OCA\Radfahrschule\Settings\Einstellungsbereich;
 use OCA\Radfahrschule\Settings\Verwaltung;
 use OCP\IURLGenerator;
@@ -22,14 +24,36 @@ final class VerwaltungTest extends TestCase {
 		$this->assertSame($bereich->getID(), $this->seite('geheim')->getSection());
 	}
 
-	private function seite(string $appPasswort): Verwaltung {
+	private function seite(
+		string $appPasswort,
+		?Formulare $formulare = null,
+		bool $vollstaendig = true,
+	): Verwaltung {
 		$zugangsdaten = $this->createStub(Zugangsdaten::class);
 		$zugangsdaten->method('basisUrl')->willReturn('https://cloud.example.org');
 		$zugangsdaten->method('benutzer')->willReturn('radfahrschule');
 		$zugangsdaten->method('appPasswort')->willReturn($appPasswort);
 		$zugangsdaten->method('freigabeGruppe')->willReturn('Radfahrschule');
+		$zugangsdaten->method('sindVollstaendig')->willReturn($vollstaendig);
 
-		return new Verwaltung($zugangsdaten, $this->betreiberangaben());
+		return new Verwaltung(
+			$zugangsdaten,
+			$this->betreiberangaben(),
+			$formulare ?? $this->formulareDieAntworten(),
+		);
+	}
+
+	private function formulareDieAntworten(): Formulare {
+		$formulare = $this->createStub(Formulare::class);
+		$formulare->method('alleEigenen')->willReturn([]);
+		return $formulare;
+	}
+
+	private function formulareDieScheitern(string $meldung): Formulare {
+		$formulare = $this->createStub(Formulare::class);
+		$formulare->method('alleEigenen')->willThrowException(
+			new FormulareNichtErreichbar($meldung));
+		return $formulare;
 	}
 
 	private function betreiberangaben(): Betreiberangaben {
@@ -93,5 +117,55 @@ final class VerwaltungTest extends TestCase {
 
 		$this->assertContains('Europe/Berlin', $daten['zeitzonen']);
 		$this->assertContains('UTC', $daten['zeitzonen']);
+	}
+
+	/**
+	 * Die Seite sagt, ob der Zugang wirklich funktioniert.
+	 *
+	 * Ohne diese Auskunft laesst sich ein Tippfehler im Kontonamen nur
+	 * daran erkennen, dass die Kursliste leer bleibt - auf einer anderen
+	 * Seite, und ohne zu sagen, welches der vier Felder schuld ist.
+	 */
+	public function testEinFunktionierenderZugangWirdGemeldet(): void {
+		$daten = $this->seite('geheim')->getForm()->getParams();
+
+		$this->assertSame('', $daten['zugangsfehler']);
+		$this->assertTrue($daten['zugangGeprueft']);
+	}
+
+	/**
+	 * Scheitert der Zugang, steht der Grund auf DIESER Seite.
+	 *
+	 * Weitergegeben wird die Meldung der Anbindung, nicht eine eigene: Die
+	 * dort unterscheidet nach HTTP-Status, ob Konto, Passwort oder Adresse
+	 * gemeint ist. Ein eigener Satz hier verloere genau das wieder.
+	 */
+	public function testEinGescheiterterZugangNenntDenGrundAufDerSeite(): void {
+		$daten = $this->seite('geheim',
+			$this->formulareDieScheitern('Das Dienstkonto stimmt nicht.'))
+			->getForm()->getParams();
+
+		$this->assertSame('Das Dienstkonto stimmt nicht.', $daten['zugangsfehler']);
+		$this->assertTrue($daten['zugangGeprueft']);
+	}
+
+	/**
+	 * Sind die Felder noch leer, wird nichts geprueft und nichts gemeldet.
+	 *
+	 * Bei einer frisch installierten App ist das der normale Zustand. Eine
+	 * Warnung waere dort keine Auskunft, sondern Laerm - dass die Felder
+	 * leer sind, sieht man daneben selbst.
+	 */
+	public function testOhneEingetrageneZugangsdatenWirdNichtGeprueft(): void {
+		$formulare = $this->createStub(Formulare::class);
+		$formulare->method('alleEigenen')->willThrowException(
+			new FormulareNichtErreichbar('Die Zugangsdaten sind unvollständig.'));
+
+		$daten = $this->seite('', $formulare, vollstaendig: false)
+			->getForm()->getParams();
+
+		$this->assertSame('', $daten['zugangsfehler']);
+		$this->assertFalse($daten['zugangGeprueft'],
+			'Ohne Zugangsdaten darf gar kein Aufruf hinausgehen.');
 	}
 }

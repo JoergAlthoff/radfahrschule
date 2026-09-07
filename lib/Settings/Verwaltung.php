@@ -7,6 +7,8 @@ namespace OCA\Radfahrschule\Settings;
 use DateTimeZone;
 use OCA\Radfahrschule\Einstellungen\Betreiberangaben;
 use OCA\Radfahrschule\Einstellungen\Zugangsdaten;
+use OCA\Radfahrschule\Formulare\Formulare;
+use OCA\Radfahrschule\Formulare\FormulareNichtErreichbar;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\Settings\ISettings;
 
@@ -14,6 +16,7 @@ class Verwaltung implements ISettings {
 	public function __construct(
 		private Zugangsdaten $zugangsdaten,
 		private Betreiberangaben $betreiberangaben,
+		private Formulare $formulare,
 	) {
 	}
 
@@ -38,7 +41,45 @@ class Verwaltung implements ISettings {
 			// sonst still auf die Vorbelegung zurueck, und niemand saehe,
 			// warum die Kurstage um einen Tag danebenliegen.
 			'zeitzonen' => DateTimeZone::listIdentifiers(),
+
+			// Ob die eingetragenen Zugangsdaten wirklich tragen. Ohne diese
+			// Auskunft zeigt sich ein Tippfehler erst daran, dass die
+			// Kursliste leer bleibt - auf einer anderen Seite, und ohne zu
+			// sagen, welches der vier Felder schuld ist.
+			'zugangsfehler' => $this->zugangsfehler(),
+			'zugangGeprueft' => $this->zugangsdaten->sindVollstaendig(),
 		]);
+	}
+
+	/**
+	 * Probiert den Zugang und nennt den Grund, wenn er nicht traegt.
+	 *
+	 * Ein LESENDER Aufruf, und der billigste, den es gibt: die Liste der
+	 * eigenen Formulare. Er legt nichts an und aendert nichts.
+	 *
+	 * Sind die Felder noch leer, geht gar kein Aufruf hinaus. Bei einer
+	 * frisch installierten App ist das der normale Zustand, und eine
+	 * Warnung waere dort keine Auskunft - dass die Felder leer sind, sieht
+	 * man daneben selbst.
+	 *
+	 * Weitergegeben wird die Meldung der Anbindung, nicht eine eigene: Die
+	 * dort unterscheidet nach HTTP-Status, ob Konto, Passwort oder Adresse
+	 * gemeint ist. Ein eigener Satz hier verloere das wieder.
+	 *
+	 * Es kostet einen Aufruf, sooft die Seite geoeffnet wird. Sie wird
+	 * selten geoeffnet.
+	 */
+	private function zugangsfehler(): string {
+		if (!$this->zugangsdaten->sindVollstaendig()) {
+			return '';
+		}
+
+		try {
+			$this->formulare->alleEigenen();
+			return '';
+		} catch (FormulareNichtErreichbar $fehler) {
+			return $fehler->getMessage();
+		}
 	}
 
 	public function getSection(): string {

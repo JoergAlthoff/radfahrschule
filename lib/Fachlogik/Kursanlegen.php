@@ -167,8 +167,8 @@ final readonly class Kursanlegen {
 				$ursache,
 				'Ob dabei schon ein Formular in Nextcloud entstanden ist, lässt '
 				. 'sich nicht sagen — die Antwort blieb aus. Bitte in Nextcloud '
-				. 'unter Formulare nachsehen: Eine Kopie heißt „VORLAGE … - '
-				. 'Kopie“ und gehört gelöscht.');
+				. 'unter Formulare nachsehen: Eine Kopie trägt den Titel der '
+				. 'Vorlage mit einem Zusatz dahinter und gehört gelöscht.');
 		}
 
 		$this->protokoll->schreibe(Vorgang::anlegenAbgebrochen(

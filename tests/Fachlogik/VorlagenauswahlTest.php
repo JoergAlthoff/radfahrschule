@@ -60,18 +60,25 @@ final class VorlagenauswahlTest extends TestCase {
 	}
 
 	/**
-	 * Eine liegengebliebene Kopie darf nicht zur Wahl stehen.
+	 * Eine liegengebliebene Kopie steht sichtbar zur Wahl und ist nicht
+	 * vorgewaehlt.
 	 *
 	 * Scheitert ein Lauf und misslingt auch das Aufraeumen - genau der Fall,
-	 * fuer den es Zurueckrollen::hinweis gibt -, bleibt ein Klon
-	 * "VORLAGE … - Kopie" in Nextcloud stehen. Titel::zerlege stuft ihn als
-	 * Vorlage ein, die Uebersicht zeigt ihn also nirgends. Ohne diese
-	 * Pruefung stuende er hier trotzdem zur Wahl: Aus der vorgewaehlten
-	 * einzigen Vorlage wuerde "— bitte waehlen —" mit zwei fast gleich
-	 * aussehenden Zeilen, und der naechste Kurs entstuende aus einem
-	 * halbfertigen Klon.
+	 * fuer den es Zurueckrollen::hinweis gibt -, bleibt ein Klon der Vorlage
+	 * in Nextcloud stehen. Er traegt weiter das VORLAGE-Praefix, die
+	 * Uebersicht zeigt ihn also nirgends.
+	 *
+	 * Aussortiert wird er NICHT. Den Zusatz hinter dem Titel vergibt
+	 * Nextcloud, und es uebersetzt ihn: auf Deutsch "- Kopie", auf Englisch
+	 * "- Copy". Ein Filter darauf greift nur in einer Sprache und laesst die
+	 * Kopie sonst still durch - im Feld waere sie dann nicht von der echten
+	 * Vorlage zu unterscheiden.
+	 *
+	 * Stattdessen wirkt die Zahl: Zwei Eintraege heben die Vorauswahl auf,
+	 * und "— bitte waehlen —" ist genau das Signal, dass etwas nicht stimmt.
+	 * Was entscheidet, ist damit der Mensch vor zwei sichtbaren Titeln.
 	 */
-	public function testEineLiegengebliebeneKopieStehtNichtZurWahl(): void {
+	public function testEineLiegengebliebeneKopieStehtZurWahlOhneVorauswahl(): void {
 		$mitLeiche = [
 			$this->formular(24, 'VORLAGE Warteliste - Anfängerkurs'),
 			$this->formular(23, 'VORLAGE Anmeldung - Anfängerkurs'),
@@ -80,11 +87,34 @@ final class VorlagenauswahlTest extends TestCase {
 
 		$warteliste = Vorlagenauswahl::ausFormularen($mitLeiche, Formularart::Warteliste);
 
-		$this->assertCount(1, $warteliste->optionen());
-		$this->assertFalse($warteliste->freieWahl(),
-			'Es bleibt genau eine Vorlage - also keine Auswahl.');
-		$this->assertFalse($warteliste->enthaelt(99),
-			'Auch der POST darf die Leiche nicht durchlassen.');
+		$this->assertCount(2, $warteliste->optionen());
+		$this->assertTrue($warteliste->freieWahl(),
+			'Zwei Eintraege heben die Vorauswahl auf.');
+		$this->assertSame([24, 99], array_column($warteliste->optionen(), 'id'));
+
+		foreach ($warteliste->optionen() as $option) {
+			$this->assertFalse($option['gewaehlt'],
+				'Keiner der beiden darf vorgewaehlt sein.');
+		}
+	}
+
+	/**
+	 * Derselbe Fall in einer Sprache, in der der Zusatz anders heisst.
+	 *
+	 * Er haelt fest, dass die Auswahl NICHT am Wortlaut haengt. Ein Filter
+	 * auf "- Kopie" liesse diesen Fall durch, und der Test daneben waere
+	 * trotzdem gruen - genau die Luecke, die es hier gab.
+	 */
+	public function testDerZusatzHinterDerKopieZaehltNicht(): void {
+		$aufEnglisch = [
+			$this->formular(24, 'VORLAGE Warteliste - Anfängerkurs'),
+			$this->formular(99, 'VORLAGE Warteliste - Anfängerkurs - Copy'),
+		];
+
+		$warteliste = Vorlagenauswahl::ausFormularen($aufEnglisch, Formularart::Warteliste);
+
+		$this->assertSame([24, 99], array_column($warteliste->optionen(), 'id'));
+		$this->assertTrue($warteliste->freieWahl());
 	}
 
 	/**

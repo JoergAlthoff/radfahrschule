@@ -39,7 +39,13 @@ interface Formulare {
 	 *
 	 * Was der Klon NICHT uebernimmt: expires und showExpiration. Was er
 	 * stillschweigend uebernimmt: maxSubmissions. Beides muss der Aufrufer
-	 * nachziehen. Der Titel bekommt " - Kopie" angehaengt.
+	 * nachziehen.
+	 *
+	 * Den Titel vergibt Nextcloud: der der Vorlage, mit einem Zusatz
+	 * dahinter. Der Zusatz ist UEBERSETZT - auf Deutsch " - Kopie", auf
+	 * Englisch " - Copy". Der Aufruf nimmt kein Titelfeld an, es gibt also
+	 * keinen Weg daran vorbei; der Aufrufer benennt sofort danach um. Auf
+	 * diesen Zusatz darf sich kein Code verlassen.
 	 *
 	 * @throws FormulareNichtErreichbar
 	 */

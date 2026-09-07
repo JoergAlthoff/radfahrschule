@@ -18,7 +18,7 @@
 	Anmeldedaten geloescht sein muessen. Kurse lassen sich verschieben und
 	wieder entfernen. Gedacht fuer einen kleinen Verein mit wenigen Kursen
 	im Jahr. Setzt die App Formulare voraus.]]></description>
-	<version>0.15.2</version>
+	<version>0.15.3</version>
 	<licence>agpl</licence>
 	<author>Joerg Althoff</author>
 	<namespace>Radfahrschule</namespace>

@@ -38,22 +38,6 @@ final class Vorlagenauswahl {
 	private const PRAEFIX_ANMELDUNG_ALT = Titel::PRAEFIX_VORLAGE . 'Anmeldung — ';
 	private const PRAEFIX_WARTELISTE_ALT = Titel::PRAEFIX_VORLAGE . 'Warteliste — ';
 
-	/**
-	 * Was Nextcloud an den Titel eines Klons haengt.
-	 *
-	 * Scheitert ein Lauf und misslingt auch das Aufraeumen, bleibt ein Klon
-	 * in Nextcloud stehen. Er traegt weiter das VORLAGE-Praefix, Kursliste
-	 * sortiert ihn also als Vorlage aus und die Uebersicht zeigt ihn
-	 * nirgends. Ohne dieses Suffix stuende er hier trotzdem zur Wahl, und
-	 * der naechste Kurs entstuende aus einem halbfertigen Klon: mit dessen
-	 * Platzzahl, dessen alter Terminzeile und womoeglich einer schon
-	 * bestehenden oeffentlichen Freigabe.
-	 *
-	 * Das Suffix haengt an der Sprache der Instanz. Greift es nicht, ist der
-	 * Stand derselbe wie vorher - schlechter wird es dadurch nicht.
-	 */
-	private const KLONSUFFIX = ' - Kopie';
-
 	/** @param list<array{id:int, titel:string, gewaehlt:bool}> $optionen */
 	private function __construct(
 		private readonly array $optionen,
@@ -74,10 +58,6 @@ final class Vorlagenauswahl {
 			if (!str_starts_with($formular->titel, Titel::PRAEFIX_VORLAGE)) {
 				continue;
 			}
-			// Siehe KLONSUFFIX: eine Leiche aus einem gescheiterten Lauf.
-			if (str_ends_with($formular->titel, self::KLONSUFFIX)) {
-				continue;
-			}
 			if (self::artAus($formular->titel) === $art) {
 				$muster[] = $formular;
 			}
@@ -86,6 +66,20 @@ final class Vorlagenauswahl {
 		// Steht genau eine zur Wahl, ist sie gesetzt und "bitte waehlen"
 		// entfaellt. Das traegt nur, weil jedes Feld ausschliesslich seine
 		// Art zeigt - sonst stuende dieselbe Vorlage in beiden Feldern.
+		//
+		// Diese Zahl ist zugleich die Warnung. Bleibt nach einem
+		// gescheiterten Lauf ein Klon der Vorlage stehen, traegt er weiter
+		// das VORLAGE-Praefix und steht damit hier. Aussortiert wird er
+		// NICHT: Den Zusatz hinter seinem Titel vergibt Nextcloud und
+		// uebersetzt ihn - "- Kopie" gilt nur auf Deutsch. Ein Filter darauf
+		// griffe in einer Sprache und liesse die Kopie sonst still durch,
+		// und dann waere sie im Feld nicht von der echten Vorlage zu
+		// unterscheiden.
+		//
+		// Zwei Eintraege heben deshalb die Vorauswahl auf. Wer anlegen will,
+		// sieht beide Titel und entscheidet selbst - der Titel eines
+		// halbfertigen Klons ist einem Menschen anzusehen, einem
+		// Textvergleich nicht.
 		$nurEine = count($muster) === 1;
 
 		$optionen = [];

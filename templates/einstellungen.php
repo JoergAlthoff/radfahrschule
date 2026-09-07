@@ -23,6 +23,25 @@ $urls = \OCP\Server::get(\OCP\IURLGenerator::class);
 		<input type="hidden" name="requesttoken" value="<?php p($_['requesttoken']); ?>">
 
 		<h3>Zugang zur Forms-API</h3>
+
+		<?php /* Der Stand des Zugangs, gepruefte Auskunft und keine
+		         Vermutung: Verwaltung hat beim Aufbau dieser Seite einen
+		         lesenden Aufruf gemacht. Ohne ihn zeigt sich ein Tippfehler
+		         erst an einer leeren Kursliste, auf einer anderen Seite.
+
+		         Ausgesagt wird in Worten und nicht ueber Farbe. */ ?>
+		<?php if ($_['zugangsfehler'] !== '') { ?>
+			<p class="rf-warnung">
+				<strong>Der Zugang trägt nicht.</strong>
+				<?php p($_['zugangsfehler']); ?>
+			</p>
+		<?php } elseif ($_['zugangGeprueft']) { ?>
+			<p class="rf-hinweis">
+				<strong>Der Zugang steht.</strong>
+				Forms antwortet mit diesem Konto.
+			</p>
+		<?php } ?>
+
 		<p class="settings-hint">
 			Das Passwort ist ein App-Passwort des Dienstkontos, kein
 			Anmeldepasswort.

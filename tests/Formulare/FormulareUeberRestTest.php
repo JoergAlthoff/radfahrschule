@@ -227,6 +227,111 @@ class FormulareUeberRestTest extends TestCase {
 	}
 
 	/**
+	 * Ein Client, dessen Aufruf scheitert.
+	 *
+	 * Der zweite Parameter entscheidet, ob eine HTTP-Antwort dabei war.
+	 * null steht fuer den Fall, in dem gar keine kam - Zeitueberschreitung,
+	 * unbekannter Name, abgewiesene Verbindung. getResponseFromThrowable
+	 * wirft dann laut Schnittstelle die Ausnahme weiter.
+	 */
+	private function dienstDerScheitert(
+		Throwable $fehler,
+		?IResponse $antwort,
+	): IClientService {
+		$client = $this->createStub(IClient::class);
+		$client->method('get')->willThrowException($fehler);
+
+		if ($antwort === null) {
+			$client->method('getResponseFromThrowable')->willThrowException($fehler);
+		} else {
+			$client->method('getResponseFromThrowable')->willReturn($antwort);
+		}
+
+		$dienst = $this->createStub(IClientService::class);
+		$dienst->method('newClient')->willReturn($client);
+		return $dienst;
+	}
+
+	/** Fuehrt einen Aufruf und gibt die Meldung, die auf die Seite ginge. */
+	private function meldungBeiStatus(?int $status): string {
+		$antwort = $status === null ? null : $this->antwortMit('', $status);
+		$anbindung = new FormulareUeberRest(
+			$this->dienstDerScheitert(new RuntimeException('technisch'), $antwort),
+			$this->zugangsdaten(),
+			$this->logger(),
+		);
+
+		try {
+			$anbindung->alleEigenen();
+		} catch (FormulareNichtErreichbar $fehler) {
+			return $fehler->getMessage();
+		}
+
+		$this->fail('Es haette FormulareNichtErreichbar kommen muessen.');
+	}
+
+	/**
+	 * Ein abgewiesener Zugang nennt Konto und Passwort.
+	 *
+	 * Ein Satz, der Adresse UND Zugangsdaten nennt, entscheidet nichts:
+	 * Wer sich im Kontonamen vertippt, sucht danach auch die Adresse ab.
+	 * Der Status sagt es genauer, also sagt die Meldung es auch.
+	 */
+	public function testEinAbgewiesenerZugangNenntKontoUndPasswort(): void {
+		$meldung = $this->meldungBeiStatus(401);
+
+		$this->assertStringContainsString('Dienstkonto', $meldung);
+		$this->assertStringContainsString('App-Passwort', $meldung);
+		$this->assertStringNotContainsString('Adresse', $meldung,
+			'Die Adresse ist hier nicht das Problem - sie zu nennen schickt '
+			. 'jemanden an der falschen Stelle suchen.');
+	}
+
+	/**
+	 * Unter der Adresse antwortet niemand: Dann ist SIE gemeint.
+	 *
+	 * Gemessen gegen die laufende Instanz: ein falscher Pfad gibt 404, ein
+	 * falsches Konto 401. Die beiden Faelle sind also unterscheidbar.
+	 */
+	public function testEineFalscheAdresseNenntDieAdresse(): void {
+		$meldung = $this->meldungBeiStatus(404);
+
+		$this->assertStringContainsString('Adresse', $meldung);
+		// Nicht auf "App-Passwort" pruefen: Der allgemeine Satz nennt es
+		// ohnehin nicht, und der Test blieb gruen, ohne etwas zu halten.
+		// "Zugangsdaten" steht darin - also faellt er darauf.
+		$this->assertStringNotContainsString('Zugangsdaten', $meldung,
+			'Bei 404 sind die Zugangsdaten nicht das Problem.');
+	}
+
+	/**
+	 * Sagt der Status nichts Genaues, bleibt es beim allgemeinen Satz.
+	 *
+	 * Ein 500 heisst, dass Forms da ist und nicht kann. Daraus laesst sich
+	 * ueber die Zugangsdaten nichts schliessen - also wird nichts behauptet.
+	 */
+	public function testEinServerfehlerBehauptetNichtsUeberDieZugangsdaten(): void {
+		$meldung = $this->meldungBeiStatus(500);
+
+		$this->assertStringNotContainsString('Dienstkonto', $meldung);
+		$this->assertStringContainsString('Einstellungen', $meldung);
+	}
+
+	/**
+	 * Ohne HTTP-Antwort gibt es keinen Status - und nichts zu schliessen.
+	 *
+	 * Das ist der haeufigste Fall: Der Name loest nicht auf, oder niemand
+	 * nimmt die Verbindung an. getResponseFromThrowable wirft dann weiter,
+	 * und die Anbindung darf daran nicht selbst scheitern.
+	 */
+	public function testOhneAntwortBleibtEsBeimAllgemeinenSatz(): void {
+		$meldung = $this->meldungBeiStatus(null);
+
+		$this->assertStringNotContainsString('Dienstkonto', $meldung);
+		$this->assertStringContainsString('antwortet nicht', $meldung);
+	}
+
+	/**
 	 * Ein Formular ohne id darf nicht entstehen.
 	 *
 	 * datenAus gibt [] zurueck, wenn ocs.data kein Objekt ist - eine

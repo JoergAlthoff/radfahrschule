@@ -7,6 +7,42 @@ die Nummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 Solange die erste Stelle `0` ist, darf sich Verhalten auch in einer
 Nebenversion ändern.
 
+## [0.15.3] — 2026-09-07
+
+### Hinzugefügt
+
+- **Die Einstellungsseite sagt, ob der Zugang zur Forms-API trägt.** Über
+  den Feldern steht „Der Zugang steht" oder der Grund, warum nicht. Bisher
+  zeigte sich ein Tippfehler im Dienstkonto erst daran, dass die Kursliste
+  leer blieb — auf einer anderen Seite, und ohne zu sagen, welches der vier
+  Felder schuld ist. Geprüft wird mit einem lesenden Aufruf beim Aufbau der
+  Seite; sind die Felder noch leer, geht keiner hinaus.
+
+### Geändert
+
+- **Die Meldung nennt jetzt, was am Zugang nicht stimmt.** Bei einem
+  abgewiesenen Zugang steht dort das Dienstkonto und das App-Passwort, bei
+  einer Adresse, unter der niemand antwortet, die Adresse. Der frühere Satz
+  nannte beides zugleich und entschied damit nichts: Wer sich im Kontonamen
+  vertippt hatte, suchte danach auch die Adresse ab. Sagt der HTTP-Status
+  nichts Genaueres, bleibt es beim allgemeinen Satz.
+
+- **Eine liegengebliebene Kopie einer Vorlage steht jetzt sichtbar in der
+  Auswahl.** Bisher sortierte die App sie aus, indem sie den Titel auf den
+  Zusatz „- Kopie" prüfte. Diesen Zusatz vergibt Nextcloud beim Kopieren,
+  und es übersetzt ihn: auf Englisch heißt er „- Copy", auf Französisch
+  „- Copier". Die Prüfung griff damit nur auf einer deutschsprachigen
+  Instanz; anderswo stand die Kopie ohnehin schon in der Liste. Statt auf
+  ein Wort zu prüfen, das Nextcloud gehört, wirkt nun die Zahl der Einträge:
+  Bei zwei Vorlagen entfällt die Vorauswahl, und wer anlegt, sieht beide
+  Titel und entscheidet selbst. Das Verhalten ist damit in jeder Sprache
+  dasselbe.
+- **Nach einem abgerissenen Kopier-Aufruf nennt die Meldung den Zusatz nicht
+  mehr wörtlich.** Sie sagt jetzt, die Kopie trage den Titel der Vorlage mit
+  einem Zusatz dahinter. Der frühere Wortlaut nannte die deutsche Form und
+  schickte damit jeden anderssprachigen Betreiber nach einem Namen suchen,
+  den es dort nicht gibt.
+
 ## [0.15.2] — 2026-09-07
 
 ### Behoben
