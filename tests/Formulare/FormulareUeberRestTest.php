@@ -534,4 +534,54 @@ class FormulareUeberRestTest extends TestCase {
 		$this->assertNotNull($formular->frageMitNamen('teilnahmebedingungen'));
 		$this->assertSame('bbbbbbbbbbbbbbbbbbbbbbbb', $formular->oeffentlicherHash());
 	}
+
+	public function testDieEmpfaengerKommenAusDenAbgaben(): void {
+		$koerper = json_encode(['ocs' => ['meta' => ['status' => 'ok'], 'data' => [
+			'filteredSubmissionsCount' => 1,
+			'questions' => [],
+			'submissions' => [[
+				'id' => 1,
+				'answers' => [
+					['questionId' => 4307, 'text' => 'Erika', 'questionName' => 'vorname'],
+					['questionId' => 4311, 'text' => 'erika.muster@example.org', 'questionName' => 'email'],
+				],
+			]],
+		]]], JSON_THROW_ON_ERROR);
+		$gesehen = null;
+
+		$anbindung = new FormulareUeberRest(
+			$this->dienstMit($this->antwortMit($koerper), $gesehen), $this->zugangsdaten(), $this->logger());
+		$empfaenger = $anbindung->empfaenger(517);
+
+		$this->assertCount(1, $empfaenger);
+		$this->assertSame('erika.muster@example.org', $empfaenger[0]->mailadresse);
+		$this->assertStringEndsWith('/ocs/v2.php/apps/forms/api/v3/forms/517/submissions', $gesehen['url']);
+	}
+
+	/**
+	 * Ohne den Schluessel "submissions" ist das keine Abgabenliste. Eine
+	 * leere Liste daraus zu machen hiesse "niemand angemeldet" - und niemand
+	 * bekaeme die Absage, ohne dass etwas meldet.
+	 */
+	public function testEineAntwortOhneAbgabenlisteWirdAbgewiesen(): void {
+		$koerper = json_encode(['ocs' => ['meta' => ['status' => 'ok'], 'data' => []]], JSON_THROW_ON_ERROR);
+
+		$anbindung = new FormulareUeberRest(
+			$this->dienstMit($this->antwortMit($koerper)), $this->zugangsdaten(), $this->logger());
+
+		$this->expectException(FormulareNichtErreichbar::class);
+		$anbindung->empfaenger(517);
+	}
+
+	/** Ein Formular ohne Abgaben ist kein Fehler. */
+	public function testEineLeereAbgabenlisteGibtKeineEmpfaenger(): void {
+		$koerper = json_encode(['ocs' => ['meta' => ['status' => 'ok'], 'data' => [
+			'submissions' => [],
+		]]], JSON_THROW_ON_ERROR);
+
+		$anbindung = new FormulareUeberRest(
+			$this->dienstMit($this->antwortMit($koerper)), $this->zugangsdaten(), $this->logger());
+
+		$this->assertSame([], $anbindung->empfaenger(517));
+	}
 }

@@ -67,8 +67,8 @@ class Version000200Date20260826000000 extends SimpleMigrationStep {
 		$tabelle->addColumn('anmeldung_id', Types::INTEGER, ['notnull' => false]);
 		$tabelle->addColumn('warteliste_id', Types::INTEGER, ['notnull' => false]);
 		$tabelle->addColumn('plaetze', Types::INTEGER, ['notnull' => false]);
-		// Eine ZAHL, kein Personenbezug. Die Anmeldedaten selbst holt die
-		// App nie. Gefuellt wird die Spalte nur beim Loeschen.
+		// Eine ZAHL, kein Personenbezug. Gefuellt wird die Spalte beim
+		// Loeschen und Verschieben.
 		$tabelle->addColumn('anmeldungen', Types::INTEGER, ['notnull' => false]);
 		$tabelle->addColumn('grund', Types::TEXT, ['notnull' => false]);
 

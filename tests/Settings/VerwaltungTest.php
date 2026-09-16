@@ -11,6 +11,7 @@ use OCA\Radfahrschule\Formulare\FormulareNichtErreichbar;
 use OCA\Radfahrschule\Settings\Einstellungsbereich;
 use OCA\Radfahrschule\Settings\Verwaltung;
 use OCP\IURLGenerator;
+use OCP\Mail\IEmailValidator;
 use PHPUnit\Framework\TestCase;
 
 final class VerwaltungTest extends TestCase {
@@ -28,6 +29,8 @@ final class VerwaltungTest extends TestCase {
 		string $appPasswort,
 		?Formulare $formulare = null,
 		bool $vollstaendig = true,
+		bool $adresseGueltig = true,
+		string $antwortadresse = 'kurse@example.org',
 	): Verwaltung {
 		$zugangsdaten = $this->createStub(Zugangsdaten::class);
 		$zugangsdaten->method('basisUrl')->willReturn('https://cloud.example.org');
@@ -36,10 +39,14 @@ final class VerwaltungTest extends TestCase {
 		$zugangsdaten->method('freigabeGruppe')->willReturn('Radfahrschule');
 		$zugangsdaten->method('sindVollstaendig')->willReturn($vollstaendig);
 
+		$emailValidator = $this->createStub(IEmailValidator::class);
+		$emailValidator->method('isValid')->willReturn($adresseGueltig);
+
 		return new Verwaltung(
 			$zugangsdaten,
-			$this->betreiberangaben(),
+			$this->betreiberangaben($antwortadresse),
 			$formulare ?? $this->formulareDieAntworten(),
+			$emailValidator,
 		);
 	}
 
@@ -56,13 +63,20 @@ final class VerwaltungTest extends TestCase {
 		return $formulare;
 	}
 
-	private function betreiberangaben(): Betreiberangaben {
+	private function betreiberangaben(string $antwortadresse = 'kurse@example.org'): Betreiberangaben {
 		$angaben = $this->createStub(Betreiberangaben::class);
 		$angaben->method('name')->willReturn('Radfahrschule Musterstadt');
 		$angaben->method('kursartRoh')->willReturn('Anfängerkurs');
 		$angaben->method('aufbewahrungTage')->willReturn(90);
 		$angaben->method('zeitzone')->willReturn('Europe/Berlin');
 		$angaben->method('terminportalHinweis')->willReturn('Auch ins Terminportal eintragen.');
+		$angaben->method('antwortadresse')->willReturn($antwortadresse);
+		$angaben->method('absageBetreff')->willReturn('Der {kursart} fällt aus');
+		$angaben->method('absageTextAngemeldete')->willReturn('An Angemeldete');
+		$angaben->method('absageTextWartende')->willReturn('An Wartende');
+		$angaben->method('verschiebungBetreff')->willReturn('Der {kursart} ist verschoben');
+		$angaben->method('verschiebungTextAngemeldete')->willReturn('Neu für Angemeldete');
+		$angaben->method('verschiebungTextWartende')->willReturn('Neu für Wartende');
 
 		return $angaben;
 	}
@@ -167,5 +181,48 @@ final class VerwaltungTest extends TestCase {
 		$this->assertSame('', $daten['zugangsfehler']);
 		$this->assertFalse($daten['zugangGeprueft'],
 			'Ohne Zugangsdaten darf gar kein Aufruf hinausgehen.');
+	}
+
+	public function testDieAntwortadresseStehtAufDerSeite(): void {
+		$daten = $this->seite('geheim')->getForm()->getParams();
+
+		$this->assertSame('kurse@example.org', $daten['antwortadresse']);
+		$this->assertFalse($daten['antwortadresseUngueltig']);
+	}
+
+	/**
+	 * Eine ungueltige Antwortadresse laesst der Versand weg. Ohne Warnung
+	 * merkte das niemand - Antworten landeten still beim Hoster.
+	 */
+	public function testEineUngueltigeAntwortadresseWirdGemeldet(): void {
+		$daten = $this->seite('geheim', adresseGueltig: false)->getForm()->getParams();
+
+		$this->assertTrue($daten['antwortadresseUngueltig']);
+	}
+
+	/**
+	 * Eine leere Antwortadresse ist kein Fehler - sie ist die Vorbelegung.
+	 * Nur eine EINGETRAGENE, aber ungueltige Adresse ist eine Luecke.
+	 */
+	public function testEineLeereAntwortadresseWirdNichtGemeldet(): void {
+		$daten = $this->seite('geheim', adresseGueltig: false, antwortadresse: '')->getForm()->getParams();
+
+		$this->assertFalse($daten['antwortadresseUngueltig']);
+	}
+
+	public function testDieAbsagetexteStehenAufDerSeite(): void {
+		$daten = $this->seite('geheim')->getForm()->getParams();
+
+		$this->assertSame('Der {kursart} fällt aus', $daten['absageBetreff']);
+		$this->assertSame('An Angemeldete', $daten['absageTextAngemeldete']);
+		$this->assertSame('An Wartende', $daten['absageTextWartende']);
+	}
+
+	public function testDieTexteDerVerschiebungStehenAufDerSeite(): void {
+		$daten = $this->seite('geheim')->getForm()->getParams();
+
+		$this->assertSame('Der {kursart} ist verschoben', $daten['verschiebungBetreff']);
+		$this->assertSame('Neu für Angemeldete', $daten['verschiebungTextAngemeldete']);
+		$this->assertSame('Neu für Wartende', $daten['verschiebungTextWartende']);
 	}
 }

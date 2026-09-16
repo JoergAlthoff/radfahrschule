@@ -137,6 +137,13 @@
 	min-width: 10rem;
 }
 
+/* Ein Mailtext braucht Breite. Nextclouds Vorgabe ist ein schmales Feld. */
+.rf-feld input[type="text"],
+.rf-feld textarea {
+	width: 100%;
+	max-width: 40rem;
+}
+
 .rf-knopfzeile {
 	margin-top: 22px;
 	display: flex;
@@ -157,6 +164,7 @@
  * so schmal, dass eine Instanz-Adresse abgeschnitten ankommt - man sieht
  * nicht mehr, was drinsteht. */
 .rf-einstellungen input[type="url"],
+.rf-einstellungen input[type="email"],
 .rf-einstellungen input[type="text"],
 .rf-einstellungen input[type="password"] {
 	width: 100%;

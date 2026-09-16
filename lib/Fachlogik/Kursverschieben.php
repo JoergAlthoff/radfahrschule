@@ -61,9 +61,12 @@ final readonly class Kursverschieben {
 
 			// Auf einen vergebenen Termin wird nicht verschoben - sonst
 			// traegt der Bestand zwei Kurse mit identischer Kennung, und die
-			// Uebersicht kann sie nicht mehr trennen.
+			// Uebersicht kann sie nicht mehr trennen. Der eigene Kurs zaehlt
+			// dabei nicht als Kollision: Bleibt der Termin gleich und aendert
+			// sich nur der Anmeldeschluss, traegt er selbst schon die neue
+			// Kennung.
 			foreach ($alleKurse as $vorhandener) {
-				if ($vorhandener->kennung === $plan->neueKennung) {
+				if ($vorhandener !== $kurs && $vorhandener->kennung === $plan->neueKennung) {
 					throw new KursGibtEsSchon($plan->neueKennung);
 				}
 			}

@@ -6,19 +6,23 @@ namespace OCA\Radfahrschule\Controller;
 
 use DateTimeImmutable;
 use InvalidArgumentException;
+use OCA\Radfahrschule\Benachrichtigung\Nachricht;
 use OCA\Radfahrschule\Einstellungen\Betreiberangaben;
 use OCA\Radfahrschule\Fachlogik\Ablauf;
+use OCA\Radfahrschule\Fachlogik\Benachrichtigen;
 use OCA\Radfahrschule\Fachlogik\GeradeBeschaeftigt;
 use OCA\Radfahrschule\Fachlogik\Kurs;
 use OCA\Radfahrschule\Fachlogik\KursGibtEsSchon;
 use OCA\Radfahrschule\Fachlogik\Kursliste;
 use OCA\Radfahrschule\Fachlogik\KursNichtGefunden;
 use OCA\Radfahrschule\Fachlogik\Kursverschieben;
+use OCA\Radfahrschule\Fachlogik\Termin;
 use OCA\Radfahrschule\Fachlogik\Titelmuster;
 use OCA\Radfahrschule\Fachlogik\VerschiebenFehlgeschlagen;
 use OCA\Radfahrschule\Fachlogik\Verschiebeplan;
 use OCA\Radfahrschule\Fachlogik\Verschiebung;
 use OCA\Radfahrschule\Fachlogik\Zeitzone;
+use OCA\Radfahrschule\Formulare\Empfaenger;
 use OCA\Radfahrschule\Formulare\Formulare;
 use OCA\Radfahrschule\Formulare\FormulareNichtErreichbar;
 use OCA\Radfahrschule\Rechte\Verwaltungsrecht;
@@ -43,6 +47,7 @@ class VerschiebenController extends Controller {
 		private readonly Betreiberangaben $betreiberangaben,
 		private readonly Ablauf $ablauf,
 		private readonly Zeitzone $zeitzone,
+		private readonly Benachrichtigen $benachrichtigen,
 	) {
 		parent::__construct($appName, $request);
 	}
@@ -101,6 +106,9 @@ class VerschiebenController extends Controller {
 			'bisIso' => $this->vorbelegung('bis', $kurs->letzterTag),
 			'anmeldeschlussIso' => $this->vorbelegung(
 				'anmeldeschluss', null, $this->alterAnmeldeschluss($kurs)),
+			// Kommt die Seite von der Kontrollseite zurueck, reist das
+			// Getippte als versteckte Felder weiter.
+			'mitgebracht' => $this->mitgebrachteNachricht(),
 		]);
 	}
 
@@ -141,14 +149,7 @@ class VerschiebenController extends Controller {
 
 		[$kurs, $verschiebung] = $angenommen;
 
-		try {
-			$plan = Verschiebeplan::rechne($kurs, $verschiebung, $this->jetzt(), $this->titelmuster, $this->ablauf);
-		} catch (InvalidArgumentException $fehler) {
-			return $this->meldung('Die Angaben passen nicht', $fehler->getMessage());
-		}
-
-		return new TemplateResponse($this->appName, 'verschiebevorschau',
-			$this->angabenAus($plan, $kurs));
+		return $this->kontrollseite($kurs, $verschiebung, $this->vorbelegteNachricht(), '', '');
 	}
 
 	#[NoAdminRequired]
@@ -162,6 +163,42 @@ class VerschiebenController extends Controller {
 		}
 
 		[$kurs, $verschiebung] = $angenommen;
+
+		$nachricht = [
+			'betreff' => $this->feld('betreff'),
+			'textAngemeldete' => $this->feld('textAngemeldete'),
+			'textWartende' => $this->feld('textWartende'),
+		];
+		$einTextSteht = $nachricht['textAngemeldete'] !== '' || $nachricht['textWartende'] !== '';
+
+		// Der Grund wird nur geprueft, wenn ein Text dasteht. Ohne Text
+		// braucht das Verschieben keinen Aufruf mehr als ohne Nachricht.
+		$grundOhneNachricht = '';
+		if ($einTextSteht) {
+			try {
+				$grundOhneNachricht = $this->grundOhneNachricht($kurs);
+			} catch (FormulareNichtErreichbar $fehler) {
+				return $this->meldung('Kurs nicht abrufbar', $fehler->getMessage());
+			}
+		}
+		$nachrichtGewollt = $einTextSteht && $grundOhneNachricht === '';
+
+		if ($nachrichtGewollt && $nachricht['betreff'] === '') {
+			return $this->kontrollseite($kurs, $verschiebung, $nachricht, '',
+				'Es ist nichts verschoben. Für die Nachricht fehlt der Betreff. Wer keine '
+				. 'Nachricht schicken will, leert beide Texte.');
+		}
+
+		// Die Adressen VOR dem Verschieben. Antwortet Forms hier nicht, ist
+		// noch nichts geaendert.
+		$auftraege = [];
+		if ($nachrichtGewollt) {
+			try {
+				$auftraege = $this->auftraegeZumNeuenTermin($kurs, $verschiebung, $nachricht);
+			} catch (FormulareNichtErreichbar $fehler) {
+				return $this->meldung('Kurs nicht abrufbar', $fehler->getMessage());
+			}
+		}
 
 		try {
 			$plan = $this->kursverschieben->verschiebe(
@@ -178,56 +215,193 @@ class VerschiebenController extends Controller {
 		} catch (KursGibtEsSchon $fehler) {
 			return $this->meldung('Diesen Termin gibt es schon', $fehler->getMessage());
 		} catch (GeradeBeschaeftigt) {
-			return $this->zeigeBeschaeftigt($kurs, $verschiebung);
+			return $this->kontrollseite($kurs, $verschiebung, $nachricht,
+				'Gerade legt oder verschiebt jemand anderes einen Kurs. Es wurde '
+				. 'nichts geändert; ein Klick auf „Jetzt verschieben" nimmt die '
+				. 'Angaben mit.', '');
 		} catch (VerschiebenFehlgeschlagen $fehler) {
-			// Genau die Unterscheidung, fuer die es das Kennzeichen gibt:
-			// Vor dem ersten Schreibaufruf ist in Nextcloud nichts geschehen.
-			// "Das Verschieben brach ab" schickte dort jemanden nach
-			// Ueberresten suchen, die es nicht gibt.
-			if (!$fehler->schonGeschrieben) {
-				// Der Satz kommt nur dazu, wenn die Fachlogik keinen eigenen
-				// mitgibt. Nach einem gelungenen Zurueckschreiben tut sie das
-				// - dann stuende hier zweimal dasselbe.
-				$text = $fehler->zusatz === ''
-					? $fehler->getMessage() . "\n\nIn Nextcloud wurde nichts "
-						. 'geändert. Der Kurs steht unverändert da.'
-					: $fehler->getMessage();
-
-				return $this->meldung('Das Verschieben ging nicht', $text,
-					vorformatiert: true);
-			}
-
-			return $this->meldung('Das Verschieben brach ab', $fehler->getMessage(),
-				vorformatiert: true);
+			return $this->verschiebenGescheitert($fehler, $nachrichtGewollt);
 		}
+
+		$ergebnis = null;
+		if ($nachrichtGewollt) {
+			$ergebnis = $this->benachrichtigen->schicke(
+				$kurs, $auftraege, $this->recht->benutzer(), $this->jetzt());
+		}
+
+		// Ging an die Angemeldeten keine Nachricht hinaus - weil ueberhaupt
+		// keine gewollt war oder ihr Text leer blieb -, sollen sie nicht in
+		// Vergessenheit geraten.
+		$angemeldeteOhneNachricht = !$nachrichtGewollt || $nachricht['textAngemeldete'] === '';
+		$erinnerung = $kurs->anmeldungen() > 0 && $angemeldeteOhneNachricht;
 
 		return new TemplateResponse($this->appName, 'verschoben', [
 			'pageTitle' => 'Kurs verschoben',
 			'neueKennung' => $plan->neueKennung,
 			'anmeldungen' => $kurs->anmeldungen(),
 			'terminportalHinweis' => $this->betreiberangaben->terminportalHinweis(),
+			// Leer, wenn keine Nachricht gewollt war.
+			'nachricht' => $ergebnis?->satz() ?? '',
+			'gescheitert' => $ergebnis->gescheitert ?? [],
+			'erinnerung' => $erinnerung,
 		]);
 	}
 
 	/**
-	 * Dieselbe Kontrollseite zurueck, diesmal mit Hinweis: Sie traegt die
-	 * Felder ohnehin schon, und getippt wurde nichts falsch.
+	 * Liest die Adressen und baut die Nachricht je Liste. Verschickt nichts.
+	 *
+	 * {termin} ist der bisherige Termin, {neuer_termin} der neue.
+	 *
+	 * @param array{betreff: string, textAngemeldete: string, textWartende: string} $nachricht
+	 * @return list<array{empfaenger: Empfaenger, nachricht: Nachricht}>
+	 * @throws FormulareNichtErreichbar
 	 */
-	private function zeigeBeschaeftigt(Kurs $kurs, Verschiebung $verschiebung): TemplateResponse {
+	private function auftraegeZumNeuenTermin(Kurs $kurs, Verschiebung $verschiebung, array $nachricht): array {
+		$neuerTermin = Termin::kurz($verschiebung->von, $verschiebung->bis);
+		$anAngemeldete = $this->benachrichtigen->nachricht(
+			$kurs, $nachricht['betreff'], $nachricht['textAngemeldete'], $neuerTermin);
+		$anWartende = $this->benachrichtigen->nachricht(
+			$kurs, $nachricht['betreff'], $nachricht['textWartende'], $neuerTermin);
+		return $this->benachrichtigen->auftraege($kurs, $anAngemeldete, $anWartende);
+	}
+
+	/** Die Meldung, wenn das Verschieben scheitert. Eine Nachricht geht dann nicht hinaus. */
+	private function verschiebenGescheitert(
+		VerschiebenFehlgeschlagen $fehler,
+		bool $nachrichtGewollt,
+	): TemplateResponse {
+		$ohneNachricht = $nachrichtGewollt
+			? "\n\nEs ist keine Nachricht zum neuen Termin hinausgegangen."
+			: '';
+
+		// Genau die Unterscheidung, fuer die es das Kennzeichen gibt:
+		// Vor dem ersten Schreibaufruf ist in Nextcloud nichts geschehen.
+		// "Das Verschieben brach ab" schickte dort jemanden nach
+		// Ueberresten suchen, die es nicht gibt.
+		if (!$fehler->schonGeschrieben) {
+			// Der Satz kommt nur dazu, wenn die Fachlogik keinen eigenen
+			// mitgibt. Nach einem gelungenen Zurueckschreiben tut sie das
+			// - dann stuende hier zweimal dasselbe.
+			$text = $fehler->zusatz === ''
+				? $fehler->getMessage() . "\n\nIn Nextcloud wurde nichts "
+					. 'geändert. Der Kurs steht unverändert da.'
+				: $fehler->getMessage();
+
+			return $this->meldung('Das Verschieben ging nicht', $text . $ohneNachricht,
+				vorformatiert: true);
+		}
+
+		return $this->meldung('Das Verschieben brach ab', $fehler->getMessage() . $ohneNachricht,
+			vorformatiert: true);
+	}
+
+	/**
+	 * Die Kontrollseite, mit den Feldern der Nachricht zum neuen Termin.
+	 *
+	 * Sie kommt beim ersten Aufruf, bei belegter Sperre und bei einem Text
+	 * ohne Betreff. Jedes Mal mit dem, was schon getippt ist.
+	 *
+	 * @param array{betreff: string, textAngemeldete: string, textWartende: string} $nachricht
+	 */
+	private function kontrollseite(
+		Kurs $kurs,
+		Verschiebung $verschiebung,
+		array $nachricht,
+		string $hinweis,
+		string $fehlerZurNachricht,
+	): TemplateResponse {
 		try {
 			$plan = Verschiebeplan::rechne($kurs, $verschiebung, $this->jetzt(), $this->titelmuster, $this->ablauf);
 		} catch (InvalidArgumentException $fehler) {
-			// Kann nicht eintreten - verschiebe hat schon gerechnet. Ein
-			// "kann nicht" ist trotzdem kein Grund, einen Fehler fallen zu
-			// lassen.
-			return $this->meldung('Gerade beschäftigt', $fehler->getMessage());
+			return $this->meldung('Die Angaben passen nicht', $fehler->getMessage());
 		}
 
-		return new TemplateResponse($this->appName, 'verschiebevorschau',
-			$this->angabenAus($plan, $kurs,
-				'Gerade legt oder verschiebt jemand anderes einen Kurs. Es wurde '
-				. 'nichts geändert; ein Klick auf „Jetzt verschieben" nimmt die '
-				. 'Angaben mit.'));
+		try {
+			$grundOhneNachricht = $this->grundOhneNachricht($kurs);
+		} catch (FormulareNichtErreichbar $fehler) {
+			return $this->meldung('Kurs nicht abrufbar', $fehler->getMessage());
+		}
+
+		// Bleibt der Termin gleich und kommt nichts Getipptes mit, aendert
+		// sich nur der Anmeldeschluss. Eine Vorbelegung aus den Einstellungen
+		// waere dann die Nachricht "ist verschoben" zu einem Termin, der
+		// gleich bleibt.
+		$nurFristGeaendert = $plan->neueKennung === $plan->alteKennung
+			&& $this->mitgebrachteNachricht() === null;
+		if ($nurFristGeaendert) {
+			$nachricht = ['betreff' => '', 'textAngemeldete' => '', 'textWartende' => ''];
+		}
+
+		$angaben = $this->angabenAus($plan, $kurs, $hinweis);
+		$angaben['betreff'] = $nachricht['betreff'];
+		$angaben['textAngemeldete'] = $nachricht['textAngemeldete'];
+		$angaben['textWartende'] = $nachricht['textWartende'];
+		$angaben['fehler'] = $fehlerZurNachricht;
+		$angaben['grundOhneNachricht'] = $grundOhneNachricht;
+		$angaben['nurFristGeaendert'] = $nurFristGeaendert;
+
+		return new TemplateResponse($this->appName, 'verschiebevorschau', $angaben);
+	}
+
+	/**
+	 * Warum keine Nachricht moeglich ist, oder ''.
+	 *
+	 * Verschoben werden kann trotzdem. Ein Kurs darf nicht am alten Termin
+	 * haengen bleiben, weil der Mailversand fehlt.
+	 *
+	 * @throws FormulareNichtErreichbar
+	 */
+	private function grundOhneNachricht(Kurs $kurs): string {
+		if ($this->benachrichtigen->versandIstAbgeschaltet()) {
+			return 'Auf dieser Nextcloud ist der Mailversand abgeschaltet. Der Kurs '
+				. 'lässt sich trotzdem verschieben, nur ohne Nachricht.';
+		}
+		$fehlendeAngabe = $this->benachrichtigen->fehlendeAngabe($kurs);
+		if ($fehlendeAngabe === null) {
+			return '';
+		}
+		return $fehlendeAngabe . ' Der Kurs lässt sich trotzdem verschieben, nur ohne Nachricht.';
+	}
+
+	/**
+	 * Das Mitgebrachte, sonst die Vorbelegung aus den Einstellungen.
+	 *
+	 * @return array{betreff: string, textAngemeldete: string, textWartende: string}
+	 */
+	private function vorbelegteNachricht(): array {
+		$mitgebracht = $this->mitgebrachteNachricht();
+		if ($mitgebracht !== null) {
+			return $mitgebracht;
+		}
+		return [
+			'betreff' => $this->betreiberangaben->verschiebungBetreff(),
+			'textAngemeldete' => $this->betreiberangaben->verschiebungTextAngemeldete(),
+			'textWartende' => $this->betreiberangaben->verschiebungTextWartende(),
+		];
+	}
+
+	/**
+	 * Betreff und Texte, wenn sie im Request stehen, sonst null.
+	 *
+	 * Der Weg zurueck zum Formular und wieder vor traegt das Getippte als
+	 * versteckte Felder. Ein geleertes Feld ist dabei gewollt und bleibt
+	 * leer. Fehlt der Betreff ganz, kommt die Seite von der Kursseite.
+	 *
+	 * @return array{betreff: string, textAngemeldete: string, textWartende: string}|null
+	 */
+	private function mitgebrachteNachricht(): ?array {
+		if ($this->request->getParam('betreff') === null) {
+			return null;
+		}
+		return [
+			'betreff' => $this->feld('betreff'),
+			'textAngemeldete' => $this->feld('textAngemeldete'),
+			'textWartende' => $this->feld('textWartende'),
+		];
+	}
+
+	private function feld(string $name): string {
+		return trim((string)$this->request->getParam($name, ''));
 	}
 
 	/**

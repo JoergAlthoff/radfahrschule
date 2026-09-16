@@ -64,6 +64,8 @@ $urls = \OCP\Server::get(\OCP\IURLGenerator::class);
 			         Schraegstriche und passt in keinen Pfad. */ ?>
 			<span class="rf-knopfzeile">
 				<button type="submit"
+				        formaction="<?php p($urls->linkToRoute('radfahrschule.benachrichtigen.formular')); ?>">Nachricht schreiben</button>
+				<button type="submit"
 				        formaction="<?php p($urls->linkToRoute('radfahrschule.verschieben.formular')); ?>">Termin verschieben</button>
 				<button type="submit" class="error">Kurs löschen</button>
 				<a class="button"

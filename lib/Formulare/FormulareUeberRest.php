@@ -25,6 +25,7 @@ final readonly class FormulareUeberRest implements Formulare {
 	private const KLON = '/ocs/v2.php/apps/forms/api/v3/forms?fromId=%d';
 	private const FRAGE = '/ocs/v2.php/apps/forms/api/v3/forms/%d/questions/%d';
 	private const FREIGABEN = '/ocs/v2.php/apps/forms/api/v3/forms/%d/shares';
+	private const ABGABEN = '/ocs/v2.php/apps/forms/api/v3/forms/%d/submissions';
 
 	/**
 	 * Was gesagt wird, wenn sich nichts Genaueres sagen laesst.
@@ -122,6 +123,25 @@ final readonly class FormulareUeberRest implements Formulare {
 			'shareWith' => $gruppe,
 			'permissions' => ['submit', 'results', 'results_delete'],
 		]);
+	}
+
+	/**
+	 * Ohne limit gibt Forms alle Abgaben heraus. Die Obergrenze greift nur,
+	 * wenn eines mitkommt.
+	 */
+	public function empfaenger(int $formularId): array {
+		$daten = $this->rufe('get', sprintf(self::ABGABEN, $formularId));
+
+		if (!array_key_exists('submissions', $daten)) {
+			throw new FormulareNichtErreichbar(sprintf(
+				'Forms lieferte für Formular %d keine Liste der Abgaben.', $formularId));
+		}
+
+		$empfaenger = [];
+		foreach ((array)$daten['submissions'] as $abgabe) {
+			$empfaenger[] = Empfaenger::ausAbgabe((array)$abgabe);
+		}
+		return $empfaenger;
 	}
 
 	/**

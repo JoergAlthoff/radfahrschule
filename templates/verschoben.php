@@ -11,11 +11,29 @@ $urls = \OCP\Server::get(\OCP\IURLGenerator::class);
 		<p>Der Kurs heißt jetzt <strong><?php p($_['neueKennung']); ?></strong>.
 			Die öffentlichen Links haben sich nicht geändert.</p>
 
-		<?php if ($_['anmeldungen'] > 0) { ?>
+		<?php if ($_['nachricht'] !== '') { ?>
+			<h3>Nachricht zum neuen Termin</h3>
+			<p class="rf-hinweis"><?php p($_['nachricht']); ?></p>
+
+			<?php if ($_['gescheitert'] !== []) { ?>
+				<div class="rf-warnung">
+					<p>An diese Einträge ging keine Nachricht hinaus. Ihre Adressen
+						stehen weiter in den Formularen. Über „Nachricht schreiben"
+						auf der Kursseite lässt sie sich nachschicken.</p>
+					<ul>
+						<?php foreach ($_['gescheitert'] as $name) { ?>
+							<li><?php p($name); ?></li>
+						<?php } ?>
+					</ul>
+				</div>
+			<?php } ?>
+		<?php } ?>
+
+		<?php if ($_['erinnerung']) { ?>
 			<p class="rf-warnung">
 				<?php p($_['anmeldungen']); ?> Angemeldete wissen noch nichts
-				vom neuen Termin. Bitte in Nextcloud anschreiben — der Dienst
-				kann das nicht.
+				vom neuen Termin. Über „Nachricht schreiben" auf der Kursseite
+				lassen sie sich anschreiben.
 			</p>
 		<?php } ?>
 

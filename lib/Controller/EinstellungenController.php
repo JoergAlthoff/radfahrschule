@@ -58,6 +58,13 @@ class EinstellungenController extends Controller {
 		$this->betreiberangaben->setzeKursart($this->feld('kursart'));
 		$this->betreiberangaben->setzeZeitzone($this->feld('zeitzone'));
 		$this->betreiberangaben->setzeTerminportalHinweis($this->feld('terminportalHinweis'));
+		$this->betreiberangaben->setzeAntwortadresse($this->feld('antwortadresse'));
+		$this->betreiberangaben->setzeAbsageBetreff($this->feld('absageBetreff'));
+		$this->betreiberangaben->setzeAbsageTextAngemeldete($this->feld('absageTextAngemeldete'));
+		$this->betreiberangaben->setzeAbsageTextWartende($this->feld('absageTextWartende'));
+		$this->betreiberangaben->setzeVerschiebungBetreff($this->feld('verschiebungBetreff'));
+		$this->betreiberangaben->setzeVerschiebungTextAngemeldete($this->feld('verschiebungTextAngemeldete'));
+		$this->betreiberangaben->setzeVerschiebungTextWartende($this->feld('verschiebungTextWartende'));
 
 		// Ein unbrauchbarer Wert wird zur Null. Betreiberangaben faellt beim
 		// Lesen auf die Vorbelegung zurueck - null Tage hiesse "sofort

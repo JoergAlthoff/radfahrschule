@@ -23,8 +23,8 @@ use DateTimeZone;
  *   - "vorgang" ist der Anker beim Suchen und traegt den Punkt als Trenner
  *   - "benutzer" ist der angemeldete Mensch, nicht das Nextcloud-Konto
  *   - "kurstag" steht in ISO, damit sich danach sortieren laesst
- *   - Kein Personenbezug ausser dem Bearbeiter. Die Anmeldedaten selbst
- *     holt die App nie.
+ *   - Kein Personenbezug ausser dem Bearbeiter. Anmeldedaten stehen hier
+ *     nie, nur Zahlen.
  */
 final readonly class Vorgang {
 	private function __construct(
@@ -140,7 +140,7 @@ final readonly class Vorgang {
 	 * koennen, dass damit ordentlich umgegangen wurde - Art. 5 Abs. 2 und
 	 * Art. 32 DSGVO.
 	 *
-	 * "anmeldungen" ist eine ZAHL. Die Anmeldedaten selbst holt die App nie.
+	 * "anmeldungen" ist eine ZAHL, kein Personenbezug.
 	 */
 	public static function geloescht(
 		DateTimeImmutable $jetzt,
@@ -217,8 +217,7 @@ final readonly class Vorgang {
 	 * Tabelle zu aendern, und die uebrigen Vorgangsarten haetten sie
 	 * dauerhaft leer.
 	 *
-	 * "anmeldungen" ist eine ZAHL. Die Anmeldedaten selbst holt die App nie -
-	 * beim Verschieben so wenig wie sonst.
+	 * "anmeldungen" ist eine ZAHL, kein Personenbezug.
 	 */
 	public static function verschoben(
 		DateTimeImmutable $jetzt,
@@ -295,6 +294,35 @@ final readonly class Vorgang {
 			plaetze: null,
 			anmeldungen: null,
 			grund: 'stehengeblieben: ' . $stehengeblieben . ' — ' . $grund,
+		);
+	}
+
+	/**
+	 * Eine Nachricht an die Teilnehmer ist verschickt.
+	 *
+	 * Nur Zahlen, im Feld grund. Die Spalte "anmeldungen" bleibt leer: Sie
+	 * zaehlt Anmeldungen, und nicht jede Mail ging an eine. Namen und
+	 * Adressen stehen in Forms und gehoeren nicht in dieses Protokoll.
+	 */
+	public static function benachrichtigt(
+		DateTimeImmutable $jetzt,
+		string $benutzer,
+		string $kennung,
+		string $kurstag,
+		int $verschickt,
+		int $gescheitert,
+	): self {
+		return new self(
+			zeitpunkt: self::inUtc($jetzt),
+			vorgang: 'kurs.benachrichtigt',
+			benutzer: $benutzer,
+			kennung: $kennung,
+			kurstag: $kurstag,
+			anmeldungId: null,
+			wartelisteId: null,
+			plaetze: null,
+			anmeldungen: null,
+			grund: 'verschickt: ' . $verschickt . ', gescheitert: ' . $gescheitert,
 		);
 	}
 

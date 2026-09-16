@@ -101,4 +101,16 @@ interface Formulare {
 	 * @throws FormulareNichtErreichbar
 	 */
 	public function gruppenFreigabeAnlegen(int $formularId, string $gruppe): void;
+
+	/**
+	 * Wer sich in ein Formular eingetragen hat: Anrede, Vorname, Nachname,
+	 * Mailadresse. Sonst nichts.
+	 *
+	 * Forms liefert jede Abgabe vollstaendig. Was Empfaenger nicht traegt,
+	 * wird hier verworfen und nirgends abgelegt.
+	 *
+	 * @return list<Empfaenger>
+	 * @throws FormulareNichtErreichbar
+	 */
+	public function empfaenger(int $formularId): array;
 }

@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace OCA\Radfahrschule\Controller;
 
 use DateTimeImmutable;
+use OCA\Radfahrschule\Benachrichtigung\Nachricht;
+use OCA\Radfahrschule\Benachrichtigung\Versandergebnis;
+use OCA\Radfahrschule\Einstellungen\Betreiberangaben;
 use OCA\Radfahrschule\Einstellungen\Zugangsdaten;
+use OCA\Radfahrschule\Fachlogik\Benachrichtigen;
 use OCA\Radfahrschule\Fachlogik\Frist;
 use OCA\Radfahrschule\Fachlogik\GeradeBeschaeftigt;
 use OCA\Radfahrschule\Fachlogik\Kurs;
@@ -16,6 +20,7 @@ use OCA\Radfahrschule\Fachlogik\KursNichtGefunden;
 use OCA\Radfahrschule\Fachlogik\LoeschenFehlgeschlagen;
 use OCA\Radfahrschule\Fachlogik\Titelmuster;
 use OCA\Radfahrschule\Fachlogik\Zeitzone;
+use OCA\Radfahrschule\Formulare\Empfaenger;
 use OCA\Radfahrschule\Formulare\Formulare;
 use OCA\Radfahrschule\Formulare\FormulareNichtErreichbar;
 use OCA\Radfahrschule\Rechte\Verwaltungsrecht;
@@ -41,6 +46,8 @@ class KursController extends Controller {
 		private readonly Titelmuster $titelmuster,
 		private readonly Frist $frist,
 		private readonly Zeitzone $zeitzone,
+		private readonly Benachrichtigen $benachrichtigen,
+		private readonly Betreiberangaben $betreiberangaben,
 	) {
 		parent::__construct($appName, $request);
 	}
@@ -128,12 +135,37 @@ class KursController extends Controller {
 
 		try {
 			$kurs = $this->kursMitKennung($kennung);
+			$grundOhneAbsage = $this->grundOhneAbsage($kurs);
 		} catch (KursNichtGefunden $fehler) {
 			return $this->meldung('Unbekannter Kurs', $fehler->getMessage());
 		} catch (FormulareNichtErreichbar $fehler) {
 			return $this->meldung('Kurs nicht abrufbar', $fehler->getMessage());
 		}
 
+		return $this->nachfrageseite(
+			$kurs,
+			$this->betreiberangaben->absageBetreff(),
+			$this->betreiberangaben->absageTextAngemeldete(),
+			$this->betreiberangaben->absageTextWartende(),
+			'',
+			$grundOhneAbsage,
+		);
+	}
+
+	/**
+	 * Die Nachfrage vor dem Loeschen, mit den Feldern der Absage.
+	 *
+	 * Sie nennt jedes Formular mit seinem Zaehlerstand, damit vor dem
+	 * Zusagen dasteht, wie viele Anmeldungen mitgehen.
+	 */
+	private function nachfrageseite(
+		Kurs $kurs,
+		string $betreff,
+		string $textAngemeldete,
+		string $textWartende,
+		string $fehler,
+		string $grundOhneAbsage,
+	): TemplateResponse {
 		return new TemplateResponse($this->appName, 'loeschnachfrage', [
 			'pageTitle' => 'Kurs löschen',
 			'id' => $kurs->eineId(),
@@ -148,7 +180,32 @@ class KursController extends Controller {
 					'abgaben' => $zeile->formular->abgaben,
 				], $kurs->zeilen()),
 			'fehlendeHaelfte' => $kurs->fehlendeHaelfte() ?? '',
+			'betreff' => $betreff,
+			'textAngemeldete' => $textAngemeldete,
+			'textWartende' => $textWartende,
+			'fehler' => $fehler,
+			'grundOhneAbsage' => $grundOhneAbsage,
 		]);
+	}
+
+	/**
+	 * Warum keine Absage moeglich ist, oder ''.
+	 *
+	 * Geloescht werden kann trotzdem. Ein Kurs darf nicht stehen bleiben,
+	 * weil der Mailversand fehlt.
+	 *
+	 * @throws FormulareNichtErreichbar
+	 */
+	private function grundOhneAbsage(Kurs $kurs): string {
+		if ($this->benachrichtigen->versandIstAbgeschaltet()) {
+			return 'Auf dieser Nextcloud ist der Mailversand abgeschaltet. Der Kurs '
+				. 'lässt sich trotzdem löschen, nur ohne Absage.';
+		}
+		$fehlendeAngabe = $this->benachrichtigen->fehlendeAngabe($kurs);
+		if ($fehlendeAngabe === null) {
+			return '';
+		}
+		return $fehlendeAngabe . ' Der Kurs lässt sich trotzdem löschen, nur ohne Absage.';
 	}
 
 	/**
@@ -174,7 +231,38 @@ class KursController extends Controller {
 		}
 
 		try {
-			$kurs = $this->kursloeschen->loesche(
+			$kurs = $this->kursMitKennung($kennung);
+			$grundOhneAbsage = $this->grundOhneAbsage($kurs);
+		} catch (KursNichtGefunden $fehler) {
+			return $this->meldung('Unbekannter Kurs', $fehler->getMessage());
+		} catch (FormulareNichtErreichbar $fehler) {
+			return $this->meldung('Kurs nicht abrufbar', $fehler->getMessage());
+		}
+
+		$betreff = $this->feld('betreff');
+		$textAngemeldete = $this->feld('textAngemeldete');
+		$textWartende = $this->feld('textWartende');
+		$einTextSteht = $textAngemeldete !== '' || $textWartende !== '';
+		$absageGewollt = $grundOhneAbsage === '' && $einTextSteht;
+
+		if ($absageGewollt && $betreff === '') {
+			return $this->nachfrageseite($kurs, $betreff, $textAngemeldete, $textWartende,
+				'Es ist nichts gelöscht. Für die Absage fehlt der Betreff. Wer keine '
+				. 'Absage schicken will, leert beide Texte.', $grundOhneAbsage);
+		}
+
+		// Die Adressen VOR dem Loeschen: Danach gibt es sie nicht mehr.
+		$auftraege = [];
+		if ($absageGewollt) {
+			try {
+				$auftraege = $this->absageauftraege($kurs, $betreff, $textAngemeldete, $textWartende);
+			} catch (FormulareNichtErreichbar $fehler) {
+				return $this->meldung('Kurs nicht abrufbar', $fehler->getMessage());
+			}
+		}
+
+		try {
+			$geloescht = $this->kursloeschen->loesche(
 				$kennung, $this->recht->benutzer(), $this->jetzt());
 		} catch (KursNichtGefunden $fehler) {
 			return $this->meldung('Unbekannter Kurs', $fehler->getMessage());
@@ -185,13 +273,47 @@ class KursController extends Controller {
 				'Es läuft gerade ein anderer Vorgang. Bitte in ein paar '
 				. 'Sekunden noch einmal versuchen.');
 		} catch (LoeschenFehlgeschlagen $fehler) {
-			return $this->meldung('Das Löschen brach ab', $fehler->getMessage(),
+			// Ein Teil des Kurses kann schon geloescht sein.
+			$meldungstext = $fehler->getMessage();
+			if ($absageGewollt) {
+				$meldungstext .= "\n\nEs ist keine Absage hinausgegangen. Die Adressen "
+					. 'aus einem schon gelöschten Formular gibt es nicht mehr.';
+			}
+			return $this->meldung('Das Löschen brach ab', $meldungstext,
 				vorformatiert: true);
 		} catch (FormulareNichtErreichbar $fehler) {
 			return $this->meldung('Kurs nicht abrufbar', $fehler->getMessage());
 		}
 
-		return new TemplateResponse($this->appName, 'geloescht', $this->loeschmeldung($kurs));
+		$ergebnis = null;
+		if ($absageGewollt) {
+			$ergebnis = $this->benachrichtigen->schicke(
+				$geloescht, $auftraege, $this->recht->benutzer(), $this->jetzt());
+		}
+
+		return new TemplateResponse($this->appName, 'geloescht',
+			$this->loeschmeldung($geloescht, $ergebnis));
+	}
+
+	/**
+	 * Liest die Adressen und baut die Absage je Liste. Verschickt nichts.
+	 *
+	 * @return list<array{empfaenger: Empfaenger, nachricht: Nachricht}>
+	 * @throws FormulareNichtErreichbar
+	 */
+	private function absageauftraege(
+		Kurs $kurs,
+		string $betreff,
+		string $textAngemeldete,
+		string $textWartende,
+	): array {
+		$anAngemeldete = $this->benachrichtigen->nachricht($kurs, $betreff, $textAngemeldete);
+		$anWartende = $this->benachrichtigen->nachricht($kurs, $betreff, $textWartende);
+		return $this->benachrichtigen->auftraege($kurs, $anAngemeldete, $anWartende);
+	}
+
+	private function feld(string $name): string {
+		return trim((string)$this->request->getParam($name, ''));
 	}
 
 	/**
@@ -265,9 +387,11 @@ class KursController extends Controller {
 	 * steht noch in Nextcloud, ihre Eintraege auch, und die Loeschfrist
 	 * laeuft weiter.
 	 *
+	 * "absage" ist leer, wenn keine Absage gewollt war.
+	 *
 	 * @return array<string, mixed>
 	 */
-	private function loeschmeldung(Kurs $kurs): array {
+	private function loeschmeldung(Kurs $kurs, ?Versandergebnis $absage): array {
 		$fehlend = $kurs->fehlendeHaelfte();
 		$zeilen = $kurs->zeilen();
 
@@ -281,6 +405,10 @@ class KursController extends Controller {
 			// Formulare samt Anmeldedaten ungenannt.
 			'geloeschte' => array_map(
 				static fn (Kurszeile $zeile): string => $zeile->beschriftung, $zeilen),
+			// Leer, wenn keine Absage gewollt war. Dann schweigt die Seite
+			// darueber, statt "keine Nachricht" zu melden.
+			'absage' => $absage?->satz() ?? '',
+			'gescheitert' => $absage->gescheitert ?? [],
 		];
 	}
 

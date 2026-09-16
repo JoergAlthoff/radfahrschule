@@ -7,8 +7,9 @@ namespace OCA\Radfahrschule\Formulare;
 /**
  * Was Forms ueber ein Formular sagt - soweit dieser Dienst es braucht.
  *
- * Die Abgaben sind eine Zahl, kein Personenbezug. Die Antworten selbst
- * liegen unter einem eigenen Endpunkt, den dieser Dienst nie aufruft.
+ * Die Abgaben sind hier eine Zahl, kein Personenbezug. Die Antworten selbst
+ * liegen unter einem eigenen Endpunkt; gelesen werden sie nur fuer eine
+ * Nachricht, ueber Formulare::empfaenger.
  */
 final readonly class Formular {
 	/**

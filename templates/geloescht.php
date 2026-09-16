@@ -26,6 +26,23 @@ $urls = \OCP\Server::get(\OCP\IURLGenerator::class);
 				entfernt.</p>
 		<?php } ?>
 
+		<?php if ($_['absage'] !== '') { ?>
+			<h3>Absage</h3>
+			<p class="rf-hinweis"><?php p($_['absage']); ?></p>
+
+			<?php if ($_['gescheitert'] !== []) { ?>
+				<div class="rf-warnung">
+					<p>An diese Einträge ging keine Absage hinaus. Die Formulare
+						sind gelöscht, ihre Adressen gibt es nicht mehr:</p>
+					<ul>
+						<?php foreach ($_['gescheitert'] as $name) { ?>
+							<li><?php p($name); ?></li>
+						<?php } ?>
+					</ul>
+				</div>
+			<?php } ?>
+		<?php } ?>
+
 		<p class="rf-knopfzeile">
 			<a class="button"
 			   href="<?php p($urls->linkToRoute('radfahrschule.uebersicht.index')); ?>">Zur Übersicht</a>

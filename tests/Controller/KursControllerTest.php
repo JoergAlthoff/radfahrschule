@@ -8,12 +8,16 @@ use DateTimeImmutable;
 use DateTimeZone;
 use OCA\Radfahrschule\Controller\KursController;
 use OCA\Radfahrschule\Einstellungen\Zugangsdaten;
+use OCA\Radfahrschule\Fachlogik\Benachrichtigen;
 use OCA\Radfahrschule\Fachlogik\Frist;
 use OCA\Radfahrschule\Fachlogik\Kursloeschen;
+use OCA\Radfahrschule\Formulare\Empfaenger;
 use OCA\Radfahrschule\Formulare\Formular;
+use OCA\Radfahrschule\Formulare\Frage;
 use OCA\Radfahrschule\Formulare\Freigabe;
 use OCA\Radfahrschule\Rechte\Verwaltungsrecht;
 use OCA\Radfahrschule\Sperre\Schreibsperre;
+use OCA\Radfahrschule\Tests\Benachrichtigung\VersandDoppel;
 use OCA\Radfahrschule\Tests\Formulare\FormulareDoppel;
 use OCA\Radfahrschule\Tests\Protokoll\ProtokollDoppel;
 use OCP\AppFramework\Utility\ITimeFactory;
@@ -27,6 +31,29 @@ use Psr\Log\LoggerInterface;
 
 final class KursControllerTest extends TestCase {
 	use MitTitelmuster;
+
+	private VersandDoppel $versand;
+
+	protected function setUp(): void {
+		$this->versand = new VersandDoppel();
+	}
+
+	/** Ein Kurs, dessen Formulare die Frage "email" tragen, mit je einem Eintrag. */
+	private function bestandMitAdressen(): FormulareDoppel {
+		$fragen = [new Frage(2, 'vorname', 'Vorname', ''), new Frage(3, 'nachname', 'Nachname', ''),
+			new Frage(4, 'email', 'E-Mail', '')];
+		$doppel = new FormulareDoppel([
+			new Formular(id: 19, hash: 'editor0000000019',
+				titel: 'Radfahrschule Musterstadt — Anfängerkurs 12./13.09.2026',
+				beschreibung: '', abgaben: 1, ablauf: 0, fragen: $fragen),
+			new Formular(id: 18, hash: 'editor0000000018',
+				titel: 'Warteliste — Anfängerkurs 12./13.09.2026',
+				beschreibung: '', abgaben: 1, ablauf: 0, fragen: $fragen),
+		]);
+		$doppel->setzeEmpfaenger(19, [new Empfaenger('Frau', 'Erika', 'Muster', 'erika.muster@example.org')]);
+		$doppel->setzeEmpfaenger(18, [new Empfaenger('', 'Otto', 'Warte', 'otto.warte@example.org')]);
+		return $doppel;
+	}
 
 	/**
 	 * Ein Kurs mit Link-Freigabe an der Anmeldung. Der Hash ist erfunden und
@@ -44,12 +71,17 @@ final class KursControllerTest extends TestCase {
 		]);
 	}
 
-	/** @param array<string, string> $felder */
+	/**
+	 * @param array<string, string> $felder
+	 * @param array<string, string> $einstellungen
+	 */
 	private function controller(
 		?FormulareDoppel $doppel = null,
 		bool $darfVerwalten = true,
 		array $felder = [],
 		bool $sperreFrei = true,
+		array $einstellungen = [],
+		bool $versandAbgeschaltet = false,
 	): KursController {
 		$doppel ??= $this->bestand();
 
@@ -74,6 +106,10 @@ final class KursControllerTest extends TestCase {
 				->willThrowException(new LockedException('belegt'));
 		}
 
+		$versand = $versandAbgeschaltet ? new VersandDoppel(abgeschaltet: true) : $this->versand;
+		$betreiberangaben = $this->betreiberangaben($einstellungen);
+		$benachrichtigen = new Benachrichtigen($doppel, $versand, new ProtokollDoppel(), $betreiberangaben);
+
 		return new KursController(
 			'radfahrschule',
 			$request,
@@ -84,7 +120,8 @@ final class KursControllerTest extends TestCase {
 			$zugangsdaten,
 			$timeFactory,
 			$this->createStub(INavigationManager::class), $this->titelmuster(),
-			new Frist($this->betreiberangaben()), $this->zeitzone());
+			new Frist($this->betreiberangaben()), $this->zeitzone(),
+			$benachrichtigen, $betreiberangaben);
 	}
 
 	public function testDieSeiteZeigtBeideFormulare(): void {
@@ -184,7 +221,11 @@ final class KursControllerTest extends TestCase {
 
 		$this->assertSame('meldung', $antwort->getTemplateName());
 		$this->assertSame('Gerade beschäftigt', $antwort->getParams()['titel']);
-		$this->assertSame([], $doppel->aufrufe);
+		// Gelesen wird vor der Sperre, geschrieben erst danach.
+		$schreibende = array_filter($doppel->aufrufe,
+			static fn (string $aufruf): bool => !str_starts_with($aufruf, 'alleEigenen')
+				&& !str_starts_with($aufruf, 'formularHolen:'));
+		$this->assertSame([], array_values($schreibende));
 	}
 
 	public function testEinHalberKursWirdAufDerSeiteBenannt(): void {
@@ -305,7 +346,10 @@ final class KursControllerTest extends TestCase {
 			$daten['zeilen']);
 		$this->assertCount(2, $doppel->bestand());
 		// Gelesen wird, geschrieben nicht.
-		$this->assertSame(['alleEigenen'], $doppel->aufrufe);
+		$schreibende = array_filter($doppel->aufrufe,
+			static fn (string $aufruf): bool => !str_starts_with($aufruf, 'alleEigenen')
+				&& !str_starts_with($aufruf, 'formularHolen:'));
+		$this->assertSame([], array_values($schreibende));
 	}
 
 	/**
@@ -356,5 +400,230 @@ final class KursControllerTest extends TestCase {
 
 		$this->assertSame('meldung', $antwort->getTemplateName());
 		$this->assertSame('Unbekannter Kurs', $antwort->getParams()['titel']);
+	}
+
+	public function testDieNachfrageBelegtDieAbsageAusDenEinstellungenVor(): void {
+		$daten = $this->controller($this->bestandMitAdressen(),
+			felder: ['kennung' => 'Anfängerkurs 12./13.09.2026'],
+			einstellungen: [
+				'absage_betreff' => 'Der {kursart} fällt aus',
+				'absage_text_angemeldete' => 'An Angemeldete',
+				'absage_text_wartende' => 'An Wartende',
+			])->nachfrage()->getParams();
+
+		$this->assertSame('Der {kursart} fällt aus', $daten['betreff']);
+		$this->assertSame('An Angemeldete', $daten['textAngemeldete']);
+		$this->assertSame('An Wartende', $daten['textWartende']);
+		$this->assertSame('', $daten['grundOhneAbsage']);
+		$this->assertSame('', $daten['fehler']);
+	}
+
+	/** Die Nachfrage liest keine Adresse. Das geschieht erst beim Loeschen. */
+	public function testDieNachfrageLiestKeineAdresse(): void {
+		$doppel = $this->bestandMitAdressen();
+
+		$this->controller($doppel, felder: ['kennung' => 'Anfängerkurs 12./13.09.2026'])->nachfrage();
+
+		$gelesen = array_filter($doppel->aufrufe,
+			static fn (string $aufruf): bool => str_starts_with($aufruf, 'empfaenger:'));
+		$this->assertSame([], array_values($gelesen));
+	}
+
+	/** Ohne Frage "email" laesst sich loeschen, nur ohne Absage. Die Seite sagt es vorher. */
+	public function testOhneEmailFrageNenntDieNachfrageDenGrund(): void {
+		$antwort = $this->controller(
+			felder: ['kennung' => 'Anfängerkurs 12./13.09.2026'])->nachfrage();
+
+		$this->assertSame('loeschnachfrage', $antwort->getTemplateName());
+		$this->assertStringContainsString('„email"', $antwort->getParams()['grundOhneAbsage']);
+		$this->assertStringContainsString('trotzdem löschen', $antwort->getParams()['grundOhneAbsage']);
+	}
+
+	public function testBeiAbgeschaltetemVersandNenntDieNachfrageDenGrund(): void {
+		$daten = $this->controller($this->bestandMitAdressen(),
+			felder: ['kennung' => 'Anfängerkurs 12./13.09.2026'],
+			versandAbgeschaltet: true)->nachfrage()->getParams();
+
+		$this->assertStringContainsString('Mailversand abgeschaltet', $daten['grundOhneAbsage']);
+	}
+
+	/** @return array<string, string> die Felder einer Absage an beide Listen */
+	private function absagefelder(): array {
+		return [
+			'kennung' => 'Anfängerkurs 12./13.09.2026',
+			'betreff' => 'Der {kursart} am {termin} fällt aus',
+			'textAngemeldete' => 'Guten Tag {anrede} {nachname}',
+			'textWartende' => 'Hallo {vorname}',
+		];
+	}
+
+	public function testNachDemLoeschenGehtDieAbsageAnBeideListen(): void {
+		$doppel = $this->bestandMitAdressen();
+
+		$antwort = $this->controller($doppel, felder: $this->absagefelder())->loesche();
+
+		$this->assertSame('geloescht', $antwort->getTemplateName());
+		$this->assertSame([], $doppel->bestand());
+		$this->assertSame('2 Nachrichten sind hinausgegangen.', $antwort->getParams()['absage']);
+		$this->assertSame('Der Anfängerkurs am 12./13.09.2026 fällt aus',
+			$this->versand->nachrichtAn('erika.muster@example.org')?->betreff);
+		$this->assertSame('Guten Tag Frau Muster', $this->versand->nachrichtAn('erika.muster@example.org')?->text);
+		$this->assertSame('Hallo Otto', $this->versand->nachrichtAn('otto.warte@example.org')?->text);
+	}
+
+	/** Scheitert das Loeschen, geht keine Absage hinaus, auch nicht an eine Liste, deren Formular schon weg ist. */
+	public function testScheitertDasLoeschenGehtKeineAbsageHinaus(): void {
+		$doppel = $this->bestandMitAdressen();
+		$doppel->laessLoeschenScheitern(18);
+
+		$antwort = $this->controller($doppel, felder: $this->absagefelder())->loesche();
+
+		$this->assertSame('meldung', $antwort->getTemplateName());
+		$this->assertSame([], $this->versand->adressen());
+	}
+
+	/**
+	 * War eine Absage gewollt, sagt die Abbruchmeldung, dass keine hinausging
+	 * und dass sich Adressen aus einem schon geloeschten Formular nicht mehr
+	 * holen lassen.
+	 */
+	public function testEinAbbruchMitGewollterAbsageNenntDieFehlendeAbsage(): void {
+		$doppel = $this->bestandMitAdressen();
+		$doppel->laessLoeschenScheitern(18);
+
+		$antwort = $this->controller($doppel, felder: $this->absagefelder())->loesche();
+
+		$meldung = $antwort->getParams()['meldung'];
+		$this->assertSame(1, substr_count($meldung, 'Es ist keine Absage hinausgegangen.'));
+		$this->assertSame([], $this->versand->adressen());
+	}
+
+	/** Ohne gewollte Absage bleibt die Abbruchmeldung, wie sie war. */
+	public function testEinAbbruchOhneGewollteAbsageNenntKeineFehlendeAbsage(): void {
+		$doppel = $this->bestand();
+		$doppel->laessLoeschenScheitern(18);
+
+		$antwort = $this->controller($doppel, felder: [
+			'kennung' => 'Anfängerkurs 12./13.09.2026',
+			'betreff' => 'Bleibt ungenutzt',
+			'textAngemeldete' => '',
+			'textWartende' => '',
+		])->loesche();
+
+		$meldung = $antwort->getParams()['meldung'];
+		$this->assertStringNotContainsString('Es ist keine Absage hinausgegangen.', $meldung);
+	}
+
+	/** Nach dem Loeschen gibt es die Adressen nicht mehr. */
+	public function testDieAdressenWerdenVorDemLoeschenGelesen(): void {
+		$doppel = $this->bestandMitAdressen();
+
+		$this->controller($doppel, felder: $this->absagefelder())->loesche();
+
+		$gelesen = array_search('empfaenger:19', $doppel->aufrufe, true);
+		$geloescht = array_search('formularLoeschen:19', $doppel->aufrufe, true);
+		$this->assertIsInt($gelesen);
+		$this->assertIsInt($geloescht);
+		$this->assertLessThan($geloescht, $gelesen);
+	}
+
+	public function testScheitertDasLesenDerAdressenWirdNichtsGeloescht(): void {
+		$doppel = $this->bestandMitAdressen();
+		$doppel->laessScheitern('empfaenger:18');
+
+		$antwort = $this->controller($doppel, felder: $this->absagefelder())->loesche();
+
+		$this->assertSame('meldung', $antwort->getTemplateName());
+		$this->assertSame('Kurs nicht abrufbar', $antwort->getParams()['titel']);
+		$this->assertCount(2, $doppel->bestand());
+		$this->assertSame([], $this->versand->adressen());
+	}
+
+	/** Ein Text ohne Betreff loescht nichts, und das Getippte bleibt stehen. */
+	public function testOhneBetreffWirdNichtsGeloescht(): void {
+		$doppel = $this->bestandMitAdressen();
+		$felder = $this->absagefelder();
+		$felder['betreff'] = '';
+
+		$antwort = $this->controller($doppel, felder: $felder)->loesche();
+
+		$this->assertSame('loeschnachfrage', $antwort->getTemplateName());
+		$this->assertNotSame('', $antwort->getParams()['fehler']);
+		$this->assertSame('Guten Tag {anrede} {nachname}', $antwort->getParams()['textAngemeldete']);
+		$this->assertCount(2, $doppel->bestand());
+	}
+
+	public function testMitLeerenTextenWirdOhneAbsageGeloescht(): void {
+		$doppel = $this->bestandMitAdressen();
+
+		$antwort = $this->controller($doppel, felder: [
+			'kennung' => 'Anfängerkurs 12./13.09.2026',
+			'betreff' => 'Bleibt ungenutzt',
+			'textAngemeldete' => '',
+			'textWartende' => '',
+		])->loesche();
+
+		$this->assertSame('geloescht', $antwort->getTemplateName());
+		$this->assertSame([], $doppel->bestand());
+		$this->assertSame('', $antwort->getParams()['absage']);
+		$this->assertSame([], $this->versand->adressen());
+	}
+
+	/** Ein leerer Text schliesst nur seine Liste aus, nicht die ganze Absage. */
+	public function testMitNurEinemGefuelltenTextGehtDieAbsageAnDieseListe(): void {
+		$doppel = $this->bestandMitAdressen();
+
+		$antwort = $this->controller($doppel, felder: [
+			'kennung' => 'Anfängerkurs 12./13.09.2026',
+			'betreff' => 'Der {kursart} am {termin} fällt aus',
+			'textAngemeldete' => 'Guten Tag {anrede} {nachname}',
+			'textWartende' => '',
+		])->loesche();
+
+		$this->assertSame('geloescht', $antwort->getTemplateName());
+		$this->assertSame([], $doppel->bestand());
+		$this->assertSame('1 Nachricht ist hinausgegangen.', $antwort->getParams()['absage']);
+		$this->assertSame('Guten Tag Frau Muster',
+			$this->versand->nachrichtAn('erika.muster@example.org')?->text);
+		$this->assertNull($this->versand->nachrichtAn('otto.warte@example.org'));
+	}
+
+	/** Ohne Frage "email" wird geloescht, nur ohne Absage. */
+	public function testOhneEmailFrageWirdOhneAbsageGeloescht(): void {
+		$doppel = $this->bestand();
+
+		$antwort = $this->controller($doppel, felder: $this->absagefelder())->loesche();
+
+		$this->assertSame('geloescht', $antwort->getTemplateName());
+		$this->assertSame([], $doppel->bestand());
+		$this->assertSame('', $antwort->getParams()['absage']);
+	}
+
+	/**
+	 * Ein zweiter Absendeversuch nach dem Loeschen findet den Kurs nicht mehr
+	 * und schickt darum keine zweite Absage. Eine Gegenprobe ist hier nicht
+	 * sinnvoll herzustellen, ohne Kursloeschen umzubauen: Der Test haelt
+	 * bereits fest, dass die KENNUNG nach dem Loeschen nicht mehr gefunden
+	 * wird - genau das verhindert den zweiten Versand.
+	 */
+	public function testEinZweiterAbsendenNachDemLoeschenSchicktKeineZweiteAbsage(): void {
+		$doppel = $this->bestandMitAdressen();
+
+		$ersteAntwort = $this->controller($doppel, felder: $this->absagefelder())->loesche();
+		$zweiteAntwort = $this->controller($doppel, felder: $this->absagefelder())->loesche();
+
+		$this->assertSame('geloescht', $ersteAntwort->getTemplateName());
+		$this->assertNotSame('geloescht', $zweiteAntwort->getTemplateName());
+		$this->assertCount(2, $this->versand->adressen());
+	}
+
+	public function testGescheiterteAbsagenWerdenMitNamenGenannt(): void {
+		$this->versand->laessScheiternBei('erika.muster@example.org');
+
+		$daten = $this->controller($this->bestandMitAdressen(),
+			felder: $this->absagefelder())->loesche()->getParams();
+
+		$this->assertSame('1 Nachricht ist hinausgegangen.', $daten['absage']);
+		$this->assertSame(['Erika Muster'], $daten['gescheitert']);
 	}
 }

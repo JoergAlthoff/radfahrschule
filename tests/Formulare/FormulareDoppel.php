@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Radfahrschule\Tests\Formulare;
 
+use OCA\Radfahrschule\Formulare\Empfaenger;
 use OCA\Radfahrschule\Formulare\Formular;
 use OCA\Radfahrschule\Formulare\Formulare;
 use OCA\Radfahrschule\Formulare\FormulareNichtErreichbar;
@@ -46,6 +47,9 @@ final class FormulareDoppel implements Formulare {
 
 	/** @var array<int, array<string, mixed>> die zuletzt geschriebenen Felder je Formular */
 	private array $geaendert = [];
+
+	/** @var array<int, list<Empfaenger>> die Eintraege je Formular */
+	private array $empfaengerJe = [];
 
 	/** @param list<Formular> $liste */
 	public function __construct(
@@ -258,6 +262,16 @@ final class FormulareDoppel implements Formulare {
 
 	public function gruppenFreigabeAnlegen(int $formularId, string $gruppe): void {
 		$this->merke('gruppenFreigabeAnlegen:' . $formularId);
+	}
+
+	/** @param list<Empfaenger> $empfaenger */
+	public function setzeEmpfaenger(int $formularId, array $empfaenger): void {
+		$this->empfaengerJe[$formularId] = $empfaenger;
+	}
+
+	public function empfaenger(int $formularId): array {
+		$this->merke('empfaenger:' . $formularId);
+		return $this->empfaengerJe[$formularId] ?? [];
 	}
 
 	/**

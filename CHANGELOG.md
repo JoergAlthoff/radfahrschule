@@ -4,8 +4,45 @@ Alle nennenswerten Änderungen an dieser App stehen hier.
 
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Nummern folgen [Semantic Versioning](https://semver.org/lang/de/).
-Solange die erste Stelle `0` ist, darf sich Verhalten auch in einer
-Nebenversion ändern.
+
+## [1.0.0] — 2026-09-16
+
+### Hinzugefügt
+
+- **Eine Nachricht an die Teilnehmer.** Auf der Kursseite steht „Nachricht
+  schreiben". Die Seite dahinter nimmt einen Betreff und je einen Text für
+  Angemeldete und Warteliste. Jeder Eintrag bekommt eine eigene Mail;
+  niemand sieht die Adresse eines anderen. Im Text werden {anrede},
+  {vorname}, {nachname}, {kursart} und {termin} ersetzt. Bleibt ein Text
+  leer, bekommt diese Liste nichts. Wer die Ergebnisseite neu lädt,
+  verschickt nichts ein zweites Mal.
+- **Eine Antwortadresse in den Einstellungen.** Nextcloud verschickt unter
+  seiner eigenen Absenderadresse. Wer auf eine Nachricht antwortet, schreibt
+  an die hier eingetragene Adresse.
+- **Eine Absage beim Löschen eines Kurses.** Die Nachfrage vor dem Löschen
+  trägt Betreff und je einen Text für Angemeldete und Warteliste. Die
+  Vorbelegung steht in den Einstellungen. Die Absage geht erst hinaus, wenn
+  die Formulare gelöscht sind. Scheitert das Löschen, bekommt niemand eine
+  Mail. Bleiben beide Texte leer, wird ohne Absage gelöscht.
+- **Eine Nachricht beim Verschieben eines Kurses.** Die Kontrollseite vor dem
+  Verschieben trägt Betreff und je einen Text für Angemeldete und
+  Warteliste. Die Vorbelegung steht in den Einstellungen. Im Text steht
+  {termin} für den bisherigen und {neuer_termin} für den neuen Termin. Die
+  Nachricht geht erst hinaus, wenn der Kurs verschoben ist. Bleiben beide
+  Texte leer, wird ohne Nachricht verschoben.
+
+### Geändert
+
+- **Die App liest für eine Nachricht vier Angaben aus den Anmeldungen:**
+  Anrede, Vorname, Nachname, Mailadresse. Sie legt davon nichts ab. Das
+  Vorgangsprotokoll nennt nur die Zahl der Mails. Die Vorlagen brauchen
+  dafür eine Frage mit dem technischen Namen `email`.
+
+### Behoben
+
+- **Nur den Anmeldeschluss zu ändern ging nicht.** Blieben die Kurstage
+  gleich, meldete „Termin verschieben" „Diesen Termin gibt es schon". Der
+  eigene Kurs zählt jetzt nicht mehr als belegter Termin.
 
 ## [0.15.3] — 2026-09-07
 

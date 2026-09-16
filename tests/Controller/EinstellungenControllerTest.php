@@ -201,4 +201,37 @@ final class EinstellungenControllerTest extends TestCase {
 
 		$this->controller([])->speichere();
 	}
+
+	public function testDieAntwortadresseWirdGeschrieben(): void {
+		$this->angabenDoppel()->expects($this->once())
+			->method('setzeAntwortadresse')->with('kurse@example.org');
+
+		$this->controller(['antwortadresse' => ' kurse@example.org '])->speichere();
+	}
+
+	public function testDieAbsagetexteWerdenGeschrieben(): void {
+		$angaben = $this->angabenDoppel();
+		$angaben->expects($this->once())->method('setzeAbsageBetreff')->with('Absage');
+		$angaben->expects($this->once())->method('setzeAbsageTextAngemeldete')->with("Zeile 1\nZeile 2");
+		$angaben->expects($this->once())->method('setzeAbsageTextWartende')->with('An Wartende');
+
+		$this->controller([
+			'absageBetreff' => ' Absage ',
+			'absageTextAngemeldete' => "Zeile 1\nZeile 2",
+			'absageTextWartende' => 'An Wartende',
+		])->speichere();
+	}
+
+	public function testDieTexteDerVerschiebungWerdenGeschrieben(): void {
+		$angaben = $this->angabenDoppel();
+		$angaben->expects($this->once())->method('setzeVerschiebungBetreff')->with('Verschoben');
+		$angaben->expects($this->once())->method('setzeVerschiebungTextAngemeldete')->with("Zeile 1\nZeile 2");
+		$angaben->expects($this->once())->method('setzeVerschiebungTextWartende')->with('An Wartende');
+
+		$this->controller([
+			'verschiebungBetreff' => ' Verschoben ',
+			'verschiebungTextAngemeldete' => "Zeile 1\nZeile 2",
+			'verschiebungTextWartende' => 'An Wartende',
+		])->speichere();
+	}
 }

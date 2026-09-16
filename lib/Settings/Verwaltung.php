@@ -10,6 +10,7 @@ use OCA\Radfahrschule\Einstellungen\Zugangsdaten;
 use OCA\Radfahrschule\Formulare\Formulare;
 use OCA\Radfahrschule\Formulare\FormulareNichtErreichbar;
 use OCP\AppFramework\Http\TemplateResponse;
+use OCP\Mail\IEmailValidator;
 use OCP\Settings\ISettings;
 
 class Verwaltung implements ISettings {
@@ -17,6 +18,7 @@ class Verwaltung implements ISettings {
 		private Zugangsdaten $zugangsdaten,
 		private Betreiberangaben $betreiberangaben,
 		private Formulare $formulare,
+		private IEmailValidator $emailValidator,
 	) {
 	}
 
@@ -36,6 +38,17 @@ class Verwaltung implements ISettings {
 			'aufbewahrungTage' => $this->betreiberangaben->aufbewahrungTage(),
 			'zeitzone' => $this->betreiberangaben->zeitzone(),
 			'terminportalHinweis' => $this->betreiberangaben->terminportalHinweis(),
+			'antwortadresse' => $this->betreiberangaben->antwortadresse(),
+			// Eine ungueltige Adresse laesst der Versand weg. Ohne diese
+			// Warnung landeten Antworten still bei der Absenderadresse der
+			// Instanz.
+			'antwortadresseUngueltig' => $this->antwortadresseUngueltig(),
+			'absageBetreff' => $this->betreiberangaben->absageBetreff(),
+			'absageTextAngemeldete' => $this->betreiberangaben->absageTextAngemeldete(),
+			'absageTextWartende' => $this->betreiberangaben->absageTextWartende(),
+			'verschiebungBetreff' => $this->betreiberangaben->verschiebungBetreff(),
+			'verschiebungTextAngemeldete' => $this->betreiberangaben->verschiebungTextAngemeldete(),
+			'verschiebungTextWartende' => $this->betreiberangaben->verschiebungTextWartende(),
 
 			// Eine Auswahlliste statt eines Feldes: Ein Tippfehler fiele
 			// sonst still auf die Vorbelegung zurueck, und niemand saehe,
@@ -80,6 +93,11 @@ class Verwaltung implements ISettings {
 		} catch (FormulareNichtErreichbar $fehler) {
 			return $fehler->getMessage();
 		}
+	}
+
+	private function antwortadresseUngueltig(): bool {
+		$adresse = $this->betreiberangaben->antwortadresse();
+		return $adresse !== '' && !$this->emailValidator->isValid($adresse);
 	}
 
 	public function getSection(): string {

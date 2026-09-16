@@ -20,6 +20,11 @@ $urls = \OCP\Server::get(\OCP\IURLGenerator::class);
 		      action="<?php p($urls->linkToRoute('radfahrschule.verschieben.vorschau')); ?>">
 			<input type="hidden" name="requesttoken" value="<?php p($_['requesttoken']); ?>">
 			<input type="hidden" name="kennung" value="<?php p($_['kennung']); ?>">
+			<?php if ($_['mitgebracht'] !== null) { ?>
+				<input type="hidden" name="betreff" value="<?php p($_['mitgebracht']['betreff']); ?>">
+				<input type="hidden" name="textAngemeldete" value="<?php p($_['mitgebracht']['textAngemeldete']); ?>">
+				<input type="hidden" name="textWartende" value="<?php p($_['mitgebracht']['textWartende']); ?>">
+			<?php } ?>
 
 			<span class="rf-feld">
 				<label for="rf-von">Erster Kurstag</label>

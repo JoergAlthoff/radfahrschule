@@ -170,4 +170,101 @@ class BetreiberangabenTest extends TestCase {
 
 		$this->assertSame('Radfahrschule Musterstadt', $geschrieben['name']);
 	}
+
+	public function testDieAntwortadresseWirdGetrimmtGelesen(): void {
+		$angaben = $this->angabenMit(['antwortadresse' => ' kurse@example.org ']);
+
+		$this->assertSame('kurse@example.org', $angaben->antwortadresse());
+	}
+
+	/** Ohne Eintrag gibt es keine. Eine Vorbelegung stuende im Code. */
+	public function testOhneEintragIstDieAntwortadresseLeer(): void {
+		$this->assertSame('', $this->angabenMit([])->antwortadresse());
+	}
+
+	public function testDieAbsagetexteWerdenGelesen(): void {
+		$angaben = $this->angabenMit([
+			'absage_betreff' => ' Der {kursart} am {termin} fällt aus ',
+			'absage_text_angemeldete' => "Guten Tag {anrede} {nachname},\nleider fällt der Kurs aus.",
+			'absage_text_wartende' => 'Hallo {vorname}, der Kurs fällt aus.',
+		]);
+
+		$this->assertSame('Der {kursart} am {termin} fällt aus', $angaben->absageBetreff());
+		$this->assertSame("Guten Tag {anrede} {nachname},\nleider fällt der Kurs aus.",
+			$angaben->absageTextAngemeldete());
+		$this->assertSame('Hallo {vorname}, der Kurs fällt aus.', $angaben->absageTextWartende());
+	}
+
+	/** Ohne Eintrag gibt es keine Absage. Eine Vorbelegung stuende im Code. */
+	public function testOhneEintragSindDieAbsagetexteLeer(): void {
+		$angaben = $this->angabenMit([]);
+
+		$this->assertSame('', $angaben->absageBetreff());
+		$this->assertSame('', $angaben->absageTextAngemeldete());
+		$this->assertSame('', $angaben->absageTextWartende());
+	}
+
+	public function testDieAbsagetexteWerdenAbgelegt(): void {
+		$geschrieben = [];
+		$konfig = $this->createStub(IAppConfig::class);
+		$konfig->method('setValueString')->willReturnCallback(
+			static function (string $app, string $schluessel, string $wert) use (&$geschrieben): bool {
+				$geschrieben[$schluessel] = $wert;
+				return true;
+			});
+		$angaben = new Betreiberangaben($konfig);
+
+		$angaben->setzeAbsageBetreff('Absage');
+		$angaben->setzeAbsageTextAngemeldete('An Angemeldete');
+		$angaben->setzeAbsageTextWartende('An Wartende');
+
+		$this->assertSame([
+			'absage_betreff' => 'Absage',
+			'absage_text_angemeldete' => 'An Angemeldete',
+			'absage_text_wartende' => 'An Wartende',
+		], $geschrieben);
+	}
+
+	public function testDieTexteDerVerschiebungWerdenGelesen(): void {
+		$angaben = $this->angabenMit([
+			'verschiebung_betreff' => ' Der {kursart} am {termin} ist verschoben ',
+			'verschiebung_text_angemeldete' => "Guten Tag {anrede} {nachname},\nneuer Termin: {neuer_termin}.",
+			'verschiebung_text_wartende' => 'Hallo {vorname}, neuer Termin: {neuer_termin}.',
+		]);
+
+		$this->assertSame('Der {kursart} am {termin} ist verschoben', $angaben->verschiebungBetreff());
+		$this->assertSame("Guten Tag {anrede} {nachname},\nneuer Termin: {neuer_termin}.",
+			$angaben->verschiebungTextAngemeldete());
+		$this->assertSame('Hallo {vorname}, neuer Termin: {neuer_termin}.', $angaben->verschiebungTextWartende());
+	}
+
+	/** Ohne Eintrag gibt es keine Nachricht. Eine Vorbelegung stuende im Code. */
+	public function testOhneEintragSindDieTexteDerVerschiebungLeer(): void {
+		$angaben = $this->angabenMit([]);
+
+		$this->assertSame('', $angaben->verschiebungBetreff());
+		$this->assertSame('', $angaben->verschiebungTextAngemeldete());
+		$this->assertSame('', $angaben->verschiebungTextWartende());
+	}
+
+	public function testDieTexteDerVerschiebungWerdenAbgelegt(): void {
+		$geschrieben = [];
+		$konfig = $this->createStub(IAppConfig::class);
+		$konfig->method('setValueString')->willReturnCallback(
+			static function (string $app, string $schluessel, string $wert) use (&$geschrieben): bool {
+				$geschrieben[$schluessel] = $wert;
+				return true;
+			});
+		$angaben = new Betreiberangaben($konfig);
+
+		$angaben->setzeVerschiebungBetreff('Verschoben');
+		$angaben->setzeVerschiebungTextAngemeldete('An Angemeldete');
+		$angaben->setzeVerschiebungTextWartende('An Wartende');
+
+		$this->assertSame([
+			'verschiebung_betreff' => 'Verschoben',
+			'verschiebung_text_angemeldete' => 'An Angemeldete',
+			'verschiebung_text_wartende' => 'An Wartende',
+		], $geschrieben);
+	}
 }

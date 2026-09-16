@@ -7,7 +7,9 @@ und einem für die Warteliste. Die App legt dieses Paar aus Vorlagen an und
 zeigt alle laufenden Kurse mit ihren Zählerständen. Für jeden Kurs nennt sie
 den Tag, an dem die Anmeldedaten gelöscht sein müssen. Kurse lassen sich auf
 einen anderen Termin verschieben und wieder entfernen; gelöscht wird von
-Hand, die App tut das nicht von selbst.
+Hand, die App tut das nicht von selbst. Den Eingetragenen lässt sich eine
+Nachricht schicken. Beim Löschen eines Kurses geht auf Wunsch eine Absage
+hinaus, beim Verschieben eine Nachricht zum neuen Termin.
 
 Ohne die App macht das jemand von Hand — sechs Schritte je Kurs, und ein
 Vertippen bei der Jahreszahl fällt erst auf, wenn sich niemand anmeldet.
@@ -34,6 +36,19 @@ Ein gewöhnlicher Bindestrich, mit einem Leerzeichen davor und danach. Ein
 Gedankenstrich (`—`) wird auch erkannt — die älteren Vorlagen tragen ihn.
 Die App kopiert diese beiden, sie erfindet keine Formulare.
 
+**Technische Namen in den Vorlagen.** Jede Frage in Nextcloud Forms kann
+einen technischen Namen tragen. Die App findet die Fragen darüber, nicht
+über den sichtbaren Text. Die Vorlagen brauchen diese Namen:
+
+| Name | wofür |
+|---|---|
+| `teilnahmebedingungen` | Die App setzt dort den Kurstermin ein |
+| `email` | Pflicht für Nachrichten an Teilnehmer |
+| `anrede`, `vorname`, `nachname` | Für die Anrede in einer Nachricht |
+
+Fehlt `email`, verschickt die App nichts und nennt das Formular. Ein Kurs
+lässt sich trotzdem löschen oder verschieben, nur ohne Mail.
+
 **Eine Gruppe.** Wer darin steht, darf die App öffnen und Kurse anlegen,
 verschieben und löschen. Wer nicht darin steht, sieht die App nicht.
 Administratoren dürfen dasselbe.
@@ -49,7 +64,7 @@ Administrationseinstellungen → Apps → Organisation steht sie mit
 Sie braucht Nextcloud 32 und PHP 8.2 oder neuer.
 
 Danach einrichten unter **Administrationseinstellungen → Radfahrschule**.
-Zwei Blöcke.
+Drei Blöcke.
 
 **Zugang zur Forms-API:**
 
@@ -78,6 +93,18 @@ Feld trägt nur den Namen; den Trenner hängt die App an.
 werden.** Er ist die Klammer zwischen Anmeldung und Warteliste — die App
 fände die vorhandenen Formulare sonst nicht mehr.
 
+**Benachrichtigungen:**
+
+| Feld | was hinein gehört | ohne Eintrag |
+|---|---|---|
+| Antwortadresse | Wohin Antworten auf eine Nachricht an Teilnehmer gehen | Antworten gehen an die Absenderadresse der Nextcloud |
+| Absage: Betreff | Vorbelegter Betreff der Absage beim Löschen eines Kurses | Das Feld steht leer da |
+| Absage: Text an die Angemeldeten | Vorbelegter Text an alle, die sich angemeldet haben | Das Feld steht leer da |
+| Absage: Text an die Warteliste | Vorbelegter Text an alle auf der Warteliste | Das Feld steht leer da |
+| Verschiebung: Betreff | Vorbelegter Betreff der Nachricht beim Verschieben eines Kurses | Das Feld steht leer da |
+| Verschiebung: Text an die Angemeldeten | Vorbelegter Text an alle, die sich angemeldet haben | Das Feld steht leer da |
+| Verschiebung: Text an die Warteliste | Vorbelegter Text an alle auf der Warteliste | Das Feld steht leer da |
+
 ### Das App-Passwort
 
 Es lässt sich nicht frei wählen. Ein ausgedachter Wert wird gespeichert und
@@ -102,11 +129,19 @@ Web-Schnittstelle, wie ein Programm von außen. Dafür muss sie sich
 anmelden. Nextcloud speichert Passwörter so, dass niemand sie zurücklesen
 kann — also muss ein Mensch es einmal hineinkopieren.
 
-## Was die App nicht anfasst
+## Was die App mit Anmeldedaten tut
 
-**Keine Anmeldedaten.** Die App liest Titel, Ablaufzeiten, Zählerstände und
-Freigabe-Links. Sie ruft nie ab, wer sich angemeldet hat. Kein Aufruf endet
-auf `/submissions`.
+**Für eine Nachricht liest sie vier Angaben:** Anrede, Vorname, Nachname,
+Mailadresse. Sonst nichts aus den Anmeldungen. Sie legt davon nichts ab,
+keine Tabelle, keine Datei. Jeder Empfänger bekommt eine eigene Mail;
+niemand sieht die Adresse eines anderen. Das Vorgangsprotokoll nennt nur
+die Zahl der verschickten Mails.
+
+Die App selbst schreibt keine Adresse ins Nextcloud-Protokoll. Nextclouds
+Mailer tut es: Scheitert eine Mail, protokolliert er Empfänger und
+Betreff; bei eingeschaltetem Debug-Protokoll auch bei Erfolg.
+
+Sonst liest die App Titel, Ablaufzeiten, Zählerstände und Freigabe-Links.
 
 Anmeldedaten werden nach der eingestellten Frist gelöscht — ab Werk 90 Tage
 nach dem Kurs. Die Zahl steht im Formular und bindet den Verein; die

@@ -201,4 +201,27 @@ final class VorgangTest extends TestCase {
 		$this->assertSame('kurs.verschieben_abgebrochen', $vorgang->vorgang);
 		$this->assertStringContainsString('Anmeldung', (string)$vorgang->grund);
 	}
+
+	/**
+	 * Das Protokoll bekommt nur Zahlen. Kein Name, keine Adresse - die
+	 * stehen in Forms, und dort gehoeren sie hin.
+	 */
+	public function testEineNachrichtWirdMitZahlenProtokolliert(): void {
+		$vorgang = Vorgang::benachrichtigt(
+			jetzt: $this->zeitpunkt(),
+			benutzer: 'anna',
+			kennung: 'Anfängerkurs 12./13.09.2026',
+			kurstag: '2026-09-13',
+			verschickt: 9,
+			gescheitert: 1,
+		);
+
+		$this->assertSame('kurs.benachrichtigt', $vorgang->vorgang);
+		$this->assertSame('anna', $vorgang->benutzer);
+		$this->assertSame('Anfängerkurs 12./13.09.2026', $vorgang->kennung);
+		$this->assertSame('2026-09-13', $vorgang->kurstag);
+		$this->assertSame('verschickt: 9, gescheitert: 1', $vorgang->grund);
+		$this->assertNull($vorgang->anmeldungen);
+		$this->assertNull($vorgang->anmeldungId);
+	}
 }

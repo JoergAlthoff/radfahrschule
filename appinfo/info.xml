@@ -10,15 +10,17 @@
 	waiting list of a course as a pair and shows the running courses with
 	their registration counts. For each course it names the day by which the
 	registration data has to be deleted. Courses can be rescheduled and
-	removed again. Made for a small club with a handful of courses per year.
-	Requires the Forms app.]]></description>
+	removed again. Sends a message to the registered participants, one mail
+	each. Made for a small club with a handful of courses per year. Requires
+	the Forms app.]]></description>
 	<description lang="de"><![CDATA[Legt Anmeldung und Warteliste eines
 	Kurses als Formularpaar an und zeigt die laufenden Kurse mit ihren
 	Zaehlerstaenden. Fuer jeden Kurs nennt sie den Tag, an dem die
 	Anmeldedaten geloescht sein muessen. Kurse lassen sich verschieben und
-	wieder entfernen. Gedacht fuer einen kleinen Verein mit wenigen Kursen
-	im Jahr. Setzt die App Formulare voraus.]]></description>
-	<version>0.15.3</version>
+	wieder entfernen. Schickt den Eingetragenen eine Nachricht, jedem eine
+	eigene Mail. Gedacht fuer einen kleinen Verein mit wenigen Kursen im
+	Jahr. Setzt die App Formulare voraus.]]></description>
+	<version>1.0.0</version>
 	<licence>agpl</licence>
 	<author>Joerg Althoff</author>
 	<namespace>Radfahrschule</namespace>

@@ -58,14 +58,6 @@ $urls = \OCP\Server::get(\OCP\IURLGenerator::class);
 			</table>
 		</div>
 
-		<?php if ($_['anmeldungen'] > 0) { ?>
-			<p class="rf-warnung">
-				<?php p($_['anmeldungen']); ?> Personen sind bereits angemeldet.
-				Sie bleiben es — aber sie erfahren vom neuen Termin nur, wenn
-				jemand sie anschreibt.
-			</p>
-		<?php } ?>
-
 		<form method="post"
 		      action="<?php p($urls->linkToRoute('radfahrschule.verschieben.ausfuehren')); ?>">
 			<input type="hidden" name="requesttoken" value="<?php p($_['requesttoken']); ?>">
@@ -73,6 +65,56 @@ $urls = \OCP\Server::get(\OCP\IURLGenerator::class);
 			<input type="hidden" name="von" value="<?php p($_['vonIso']); ?>">
 			<input type="hidden" name="bis" value="<?php p($_['bisIso']); ?>">
 			<input type="hidden" name="anmeldeschluss" value="<?php p($_['anmeldeschlussIso']); ?>">
+
+			<h3>Nachricht zum neuen Termin</h3>
+
+			<?php if ($_['anmeldungen'] > 0) { ?>
+				<p class="rf-hinweis">
+					<?php p($_['anmeldungen']); ?> Personen sind bereits angemeldet.
+					Sie bleiben es.
+				</p>
+			<?php } ?>
+
+			<?php if ($_['grundOhneNachricht'] !== '') { ?>
+				<p class="rf-hinweis"><?php p($_['grundOhneNachricht']); ?></p>
+			<?php } else { ?>
+				<?php if ($_['fehler'] !== '') { ?>
+					<p class="rf-warnung"><?php p($_['fehler']); ?></p>
+				<?php } ?>
+
+				<p class="rf-hinweis">
+					Die Nachricht geht erst hinaus, wenn der Kurs verschoben ist.
+					Jeder Eintrag in der Anmeldung und auf der Warteliste bekommt
+					eine eigene Mail. Bleibt ein Text leer, bekommt diese Liste
+					nichts. Bleiben beide leer, wird ohne Nachricht verschoben.
+				</p>
+				<p class="rf-hinweis">
+					Diese Stellen werden je Empfänger ersetzt: {anrede}, {vorname},
+					{nachname}, {kursart}, {termin} für den bisherigen und
+					{neuer_termin} für den neuen Termin.
+				</p>
+
+				<?php if ($_['nurFristGeaendert']) { ?>
+					<p class="rf-hinweis">
+						Der Termin bleibt gleich, nur der Anmeldeschluss ändert
+						sich. Die Nachricht ist deshalb nicht vorbelegt.
+					</p>
+				<?php } ?>
+
+				<p class="rf-feld">
+					<label for="rf-verschiebung-betreff">Betreff</label>
+					<input type="text" id="rf-verschiebung-betreff" name="betreff"
+					       value="<?php p($_['betreff']); ?>">
+				</p>
+				<p class="rf-feld">
+					<label for="rf-verschiebung-angemeldete">Text an die Angemeldeten</label>
+					<textarea id="rf-verschiebung-angemeldete" name="textAngemeldete" rows="8"><?php p($_['textAngemeldete']); ?></textarea>
+				</p>
+				<p class="rf-feld">
+					<label for="rf-verschiebung-wartende">Text an die Warteliste</label>
+					<textarea id="rf-verschiebung-wartende" name="textWartende" rows="8"><?php p($_['textWartende']); ?></textarea>
+				</p>
+			<?php } ?>
 
 			<span class="rf-knopfzeile">
 				<button type="submit" class="primary">Jetzt verschieben</button>

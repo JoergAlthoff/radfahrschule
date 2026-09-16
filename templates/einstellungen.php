@@ -185,6 +185,77 @@ $urls = \OCP\Server::get(\OCP\IURLGenerator::class);
 			       placeholder="Der Termin gehört noch ins Terminportal.">
 		</p>
 
+		<h3>Benachrichtigungen</h3>
+		<?php /* Nextcloud verschickt unter seiner eigenen Absenderadresse.
+		         Bei einer gehosteten Instanz gehoert sie dem Hoster, und
+		         Antworten liefen dort ins Leere. */ ?>
+		<?php if ($_['antwortadresseUngueltig']) { ?>
+			<p class="rf-warnung">
+				<strong>Die Antwortadresse ist keine gültige Mailadresse.</strong>
+				Nachrichten gehen trotzdem hinaus, aber ohne sie. Antworten
+				landen dann bei der Absenderadresse dieser Nextcloud.
+			</p>
+		<?php } ?>
+		<p class="settings-hint">
+			Nachrichten an Teilnehmer verschickt Nextcloud unter seiner eigenen
+			Absenderadresse. Wer darauf antwortet, schreibt an diese Adresse.
+		</p>
+		<p>
+			<label for="radfahrschule-antwortadresse">Antwortadresse</label><br>
+			<input type="email" id="radfahrschule-antwortadresse" name="antwortadresse"
+			       value="<?php p($_['antwortadresse']); ?>"
+			       placeholder="kurse@example.org">
+		</p>
+
+		<p class="settings-hint">
+			Beim Löschen eines Kurses lässt sich eine Absage an die Eingetragenen
+			schicken. Diese Texte stehen dort vorbelegt und lassen sich vor dem
+			Löschen noch ändern. Ersetzt werden {anrede}, {vorname}, {nachname},
+			{kursart} und {termin}. Ein leerer Text heißt: Diese Liste bekommt
+			keine Absage.
+		</p>
+		<p>
+			<label for="radfahrschule-absage-betreff">Absage: Betreff</label><br>
+			<input type="text" id="radfahrschule-absage-betreff" name="absageBetreff"
+			       value="<?php p($_['absageBetreff']); ?>"
+			       placeholder="Der {kursart} am {termin} fällt aus">
+		</p>
+		<p>
+			<label for="radfahrschule-absage-angemeldete">Absage: Text an die Angemeldeten</label><br>
+			<textarea id="radfahrschule-absage-angemeldete" name="absageTextAngemeldete"
+			          rows="6"><?php p($_['absageTextAngemeldete']); ?></textarea>
+		</p>
+		<p>
+			<label for="radfahrschule-absage-wartende">Absage: Text an die Warteliste</label><br>
+			<textarea id="radfahrschule-absage-wartende" name="absageTextWartende"
+			          rows="6"><?php p($_['absageTextWartende']); ?></textarea>
+		</p>
+
+		<p class="settings-hint">
+			Beim Verschieben eines Kurses lässt sich eine Nachricht an die
+			Eingetragenen schicken. Diese Texte stehen dort vorbelegt und lassen
+			sich vorher noch ändern. Ersetzt werden {anrede}, {vorname},
+			{nachname}, {kursart}, {termin} für den bisherigen und {neuer_termin}
+			für den neuen Termin. Ein leerer Text heißt: Diese Liste bekommt
+			keine Nachricht.
+		</p>
+		<p>
+			<label for="radfahrschule-verschiebung-betreff">Verschiebung: Betreff</label><br>
+			<input type="text" id="radfahrschule-verschiebung-betreff" name="verschiebungBetreff"
+			       value="<?php p($_['verschiebungBetreff']); ?>"
+			       placeholder="Der {kursart} am {termin} ist verschoben">
+		</p>
+		<p>
+			<label for="radfahrschule-verschiebung-angemeldete">Verschiebung: Text an die Angemeldeten</label><br>
+			<textarea id="radfahrschule-verschiebung-angemeldete" name="verschiebungTextAngemeldete"
+			          rows="6"><?php p($_['verschiebungTextAngemeldete']); ?></textarea>
+		</p>
+		<p>
+			<label for="radfahrschule-verschiebung-wartende">Verschiebung: Text an die Warteliste</label><br>
+			<textarea id="radfahrschule-verschiebung-wartende" name="verschiebungTextWartende"
+			          rows="6"><?php p($_['verschiebungTextWartende']); ?></textarea>
+		</p>
+
 		<p>
 			<button type="submit" class="primary">Speichern</button>
 		</p>

@@ -9,7 +9,8 @@ use OCP\IAppConfig;
 
 /**
  * Die Angaben, die beschreiben, WER die App betreibt: der Name im
- * Formulartitel, die Kursart, die Aufbewahrungsfrist, die Zeitzone.
+ * Formulartitel, die Kursart, die Aufbewahrungsfrist, die Zeitzone, die
+ * Antwortadresse.
  *
  * Sie stehen in der Konfiguration und nicht im Code, weil jede Instanz einen
  * anderen Betreiber hat. Wer die App installiert, traegt seine eigenen
@@ -24,7 +25,7 @@ use OCP\IAppConfig;
  * auf und rechnet trotzdem falsch.
  *
  * Schwester von Zugangsdaten - die handelt vom Zugang zur Forms-API, diese
- * von der Fachlichkeit.
+ * von der Fachlichkeit, samt der Texte der Absage und der Verschiebung.
  *
  * NICHT final: Tests ersetzen die Klasse durch ein Doppel, und PHPUnit kann
  * eine final-Klasse nicht ersetzen.
@@ -119,6 +120,66 @@ readonly class Betreiberangaben {
 	}
 
 	/**
+	 * Wohin Antworten auf eine Nachricht an Teilnehmer gehen.
+	 *
+	 * Nextcloud verschickt unter seiner eigenen Absenderadresse, und die
+	 * gehoert bei einer gehosteten Instanz dem Hoster. Wer auf "Antworten"
+	 * klickt, schreibt an diese Adresse. Leer heisst: keine Antwortadresse.
+	 */
+	public function antwortadresse(): string {
+		return $this->getrimmt('antwortadresse');
+	}
+
+	/**
+	 * Der vorbelegte Betreff einer Absage. Er gilt fuer beide Listen.
+	 *
+	 * Leer heisst: Die Nachfrage vor dem Loeschen zeigt ein leeres Feld.
+	 */
+	public function absageBetreff(): string {
+		return $this->getrimmt('absage_betreff');
+	}
+
+	/** Der vorbelegte Text der Absage an die Angemeldeten. */
+	public function absageTextAngemeldete(): string {
+		return $this->getrimmt('absage_text_angemeldete');
+	}
+
+	/**
+	 * Der vorbelegte Text der Absage an die Warteliste.
+	 *
+	 * Ein eigener Text, weil es um etwas anderes geht: Wer angemeldet war,
+	 * verliert einen Platz, wer wartet, eine Aussicht.
+	 */
+	public function absageTextWartende(): string {
+		return $this->getrimmt('absage_text_wartende');
+	}
+
+	/**
+	 * Der vorbelegte Betreff der Nachricht beim Verschieben. Er gilt fuer
+	 * beide Listen.
+	 *
+	 * Leer heisst: Die Kontrollseite zeigt ein leeres Feld.
+	 */
+	public function verschiebungBetreff(): string {
+		return $this->getrimmt('verschiebung_betreff');
+	}
+
+	/** Der vorbelegte Text an die Angemeldeten, wenn ein Kurs verschoben wird. */
+	public function verschiebungTextAngemeldete(): string {
+		return $this->getrimmt('verschiebung_text_angemeldete');
+	}
+
+	/**
+	 * Der vorbelegte Text an die Warteliste, wenn ein Kurs verschoben wird.
+	 *
+	 * Ein eigener Text, weil es um etwas anderes geht: Wer angemeldet ist,
+	 * behaelt seinen Platz, wer wartet, nur die Aussicht darauf.
+	 */
+	public function verschiebungTextWartende(): string {
+		return $this->getrimmt('verschiebung_text_wartende');
+	}
+
+	/**
 	 * Reicht das, um ein Formular anzulegen?
 	 *
 	 * Nur Name und Kursart - Frist und Zeitzone haben eine Vorbelegung.
@@ -145,6 +206,34 @@ readonly class Betreiberangaben {
 
 	public function setzeTerminportalHinweis(string $wert): void {
 		$this->schreibe('terminportal_hinweis', trim($wert));
+	}
+
+	public function setzeAntwortadresse(string $wert): void {
+		$this->schreibe('antwortadresse', trim($wert));
+	}
+
+	public function setzeAbsageBetreff(string $wert): void {
+		$this->schreibe('absage_betreff', trim($wert));
+	}
+
+	public function setzeAbsageTextAngemeldete(string $wert): void {
+		$this->schreibe('absage_text_angemeldete', trim($wert));
+	}
+
+	public function setzeAbsageTextWartende(string $wert): void {
+		$this->schreibe('absage_text_wartende', trim($wert));
+	}
+
+	public function setzeVerschiebungBetreff(string $wert): void {
+		$this->schreibe('verschiebung_betreff', trim($wert));
+	}
+
+	public function setzeVerschiebungTextAngemeldete(string $wert): void {
+		$this->schreibe('verschiebung_text_angemeldete', trim($wert));
+	}
+
+	public function setzeVerschiebungTextWartende(string $wert): void {
+		$this->schreibe('verschiebung_text_wartende', trim($wert));
 	}
 
 	/**

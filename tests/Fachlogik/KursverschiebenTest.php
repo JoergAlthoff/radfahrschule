@@ -131,6 +131,23 @@ final class KursverschiebenTest extends TestCase {
 			'Anfängerkurs 12./13.09.2026', $this->verschiebung(), 'anna', $this->jetzt());
 	}
 
+	/**
+	 * Bleiben die Kurstage gleich und aendert sich nur der Anmeldeschluss,
+	 * bleibt die Kennung dieselbe. Der Kurs zaehlt dabei nicht als sein
+	 * eigener belegter Termin.
+	 */
+	public function testEineReineFristaenderungGelingt(): void {
+		$doppel = $this->bestand();
+
+		$plan = $this->verschieben($doppel)->verschiebe(
+			'Anfängerkurs 12./13.09.2026',
+			$this->verschiebung(von: '2026-09-12', bis: '2026-09-13', schluss: '2026-09-05'),
+			'anna', $this->jetzt());
+
+		$this->assertSame('Anfängerkurs 12./13.09.2026', $plan->neueKennung);
+		$this->assertSame($plan->alteKennung, $plan->neueKennung);
+	}
+
 	public function testEineBelegteSperreWeistAb(): void {
 		$doppel = $this->bestand();
 

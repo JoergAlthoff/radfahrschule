@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace OCA\Radfahrschule\AppInfo;
 
+use OCA\Radfahrschule\Benachrichtigung\Versand;
+use OCA\Radfahrschule\Benachrichtigung\VersandUeberNextcloud;
 use OCA\Radfahrschule\Formulare\Formulare;
 use OCA\Radfahrschule\Formulare\FormulareUeberRest;
 use OCA\Radfahrschule\Protokoll\Protokoll;
@@ -24,6 +26,7 @@ class Application extends App implements IBootstrap {
 		// Die Naehte: Hier - und nur hier - steht, welche Anbindung gilt.
 		$context->registerServiceAlias(Formulare::class, FormulareUeberRest::class);
 		$context->registerServiceAlias(Protokoll::class, ProtokollInDerDatenbank::class);
+		$context->registerServiceAlias(Versand::class, VersandUeberNextcloud::class);
 	}
 
 	public function boot(IBootContext $context): void {
