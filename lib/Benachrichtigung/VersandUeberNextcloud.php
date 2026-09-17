@@ -45,7 +45,10 @@ final readonly class VersandUeberNextcloud implements Versand {
 		}
 
 		$mail = $this->mailer->createMessage();
-		$mail->setTo([$empfaenger->mailadresse => $empfaenger->name()]);
+		// Der Name kommt aus dem oeffentlichen Formular und steht oben in der
+		// Mail. Er folgt derselben Regel wie die Platzhalter im Text.
+		$name = Nachricht::ausDerAbgabe($empfaenger->name());
+		$mail->setTo([$empfaenger->mailadresse => $name]);
 		$mail->setSubject($nachricht->betreff);
 		$mail->setPlainBody($nachricht->text);
 

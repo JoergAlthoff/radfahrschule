@@ -5,6 +5,29 @@ Alle nennenswerten Änderungen an dieser App stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Nummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.0.1] — 2026-09-17
+
+### Behoben
+
+- **Ein fremdes Formular des Dienstkontos stand als Kurs in der Übersicht.**
+  Ein Titel ohne bekannten Anfang wurde zu einem eigenen Kurs. Über „Kurs
+  löschen" ließ sich ein solches Formular samt Antworten entfernen. Ein Kurs
+  braucht jetzt eine Anmeldung oder eine Warteliste. Ein Formular ohne
+  erkennbare Art gehört nur dann dazu, wenn sein Titel zu einer davon passt.
+- **Namen aus dem öffentlichen Formular kamen ungefiltert in die Mails.**
+  Wer sich anmeldet, bestimmt Anrede, Vorname und Nachname selbst. Dort
+  ließen sich ein Link oder eine Telefonnummer eintragen, die dann in einer
+  Nachricht des Vereins standen. In Betreff, Text und Empfängerfeld bleiben
+  jetzt nur Buchstaben, Leerzeichen, Bindestrich und Apostroph, höchstens
+  50 Zeichen je Feld.
+
+### Geändert
+
+- **Die Einstellungsseite warnt bei einer Adresse ohne https://.**
+  Dienstkonto und App-Passwort gehen sonst unverschlüsselt über das Netz.
+  Gespeichert und benutzt wird die Adresse trotzdem, damit eine Testinstanz
+  ohne Zertifikat weiter läuft.
+
 ## [1.0.0] — 2026-09-16
 
 ### Hinzugefügt

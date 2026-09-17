@@ -49,15 +49,15 @@ final class AblaufTest extends TestCase {
 
 	/**
 	 * Die Zone kommt aus den Einstellungen. Ein Betreiber anderswo schliesst
-	 * seine Warteliste zu einer anderen Unix-Sekunde: Mittag in Essen ist im
+	 * seine Warteliste zu einer anderen Unix-Sekunde: Mittag in Berlin ist im
 	 * Sommer 10:00 UTC, Mittag in Reykjavik das ganze Jahr 12:00 UTC.
 	 */
 	public function testEineAndereZeitzoneVerschiebtDenZeitpunkt(): void {
-		$inEssen = $this->ablauf()->fuerWarteliste($this->tag('2026-07-01'));
+		$inBerlin = $this->ablauf()->fuerWarteliste($this->tag('2026-07-01'));
 		$inReykjavik = $this->ablauf(['zeitzone' => 'Atlantic/Reykjavik'])
 			->fuerWarteliste($this->tag('2026-07-01'));
 
-		$this->assertSame(2 * 3600, $inReykjavik - $inEssen);
+		$this->assertSame(2 * 3600, $inReykjavik - $inBerlin);
 	}
 
 	private function alsBerlinerZeit(int $sekunden): string {

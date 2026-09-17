@@ -85,19 +85,6 @@ final class KurszeilenTest extends TestCase {
 	}
 
 	/**
-	 * Ein Formular ohne erkennbare Art bildet einen eigenen Eintrag und
-	 * gehoert trotzdem in die Zeilen - sonst bliebe es beim Loeschen stehen.
-	 */
-	public function testEinFormularOhneArtStehtAlsSonstiges(): void {
-		$kurs = $this->einzigerKurs([$this->formular(30, 'Irgendwas ohne Präfix')]);
-
-		$zeilen = $kurs->zeilen();
-
-		$this->assertCount(1, $zeilen);
-		$this->assertSame('Ohne Art', $zeilen[0]->beschriftung);
-	}
-
-	/**
 	 * Wird eine Haelfte in Nextcloud umbenannt, faellt sie aus dem Paar. Was
 	 * bleibt, sieht aus wie ein vollstaendiger Kurs - und wer ihn loescht,
 	 * bekaeme "samt Anmeldedaten entfernt" zu lesen, waehrend die andere
@@ -146,16 +133,6 @@ final class KurszeilenTest extends TestCase {
 		$this->assertSame('Ohne Art', $zeilen[1]->beschriftung);
 
 		// Es wird mitgeloescht - also darf die Seite nichts anderes sagen.
-		$this->assertNull($kurs->fehlendeHaelfte());
-	}
-
-	/**
-	 * Auch der Fall, dass beide fehlen: Ein Eintrag aus einem Formular ohne
-	 * erkennbare Art ist kein halber Kurs.
-	 */
-	public function testEinFormularOhneArtIstKeinHalberKurs(): void {
-		$kurs = $this->einzigerKurs([$this->formular(30, 'Irgendwas ohne Präfix')]);
-
 		$this->assertNull($kurs->fehlendeHaelfte());
 	}
 

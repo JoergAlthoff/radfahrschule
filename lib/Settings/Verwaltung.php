@@ -25,6 +25,10 @@ class Verwaltung implements ISettings {
 	public function getForm(): TemplateResponse {
 		return new TemplateResponse('radfahrschule', 'einstellungen', [
 			'basisUrl' => $this->zugangsdaten->basisUrl(),
+			// Ohne https gehen Dienstkonto und App-Passwort im Klartext
+			// hinaus. Gewarnt, nicht gesperrt: Eine Testinstanz im eigenen
+			// Netz hat oft kein Zertifikat.
+			'adresseOhneHttps' => $this->adresseOhneHttps(),
 			'benutzer' => $this->zugangsdaten->benutzer(),
 			// Das Passwort wird NIE zurueckgegeben, nur ob eines gesetzt
 			// ist. Nextcloud haelt es verschluesselt.
@@ -93,6 +97,12 @@ class Verwaltung implements ISettings {
 		} catch (FormulareNichtErreichbar $fehler) {
 			return $fehler->getMessage();
 		}
+	}
+
+	/** Das Schema kennt keine Gross- und Kleinschreibung. */
+	private function adresseOhneHttps(): bool {
+		$adresse = strtolower($this->zugangsdaten->basisUrl());
+		return $adresse !== '' && !str_starts_with($adresse, 'https://');
 	}
 
 	private function antwortadresseUngueltig(): bool {

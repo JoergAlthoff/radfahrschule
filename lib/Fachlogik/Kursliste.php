@@ -12,6 +12,11 @@ final class Kursliste {
 	 * Buendelt Formulare zu Kursen. Vorlagen bleiben draussen: Sie sind
 	 * Muster zum Klonen, kein laufender Kurs.
 	 *
+	 * Ein Kurs braucht eine Anmeldung oder eine Warteliste. Formulare ohne
+	 * Art allein bilden keinen: Sonst stuende jedes fremde Formular des
+	 * Dienstkontos in der Uebersicht und liesse sich dort samt Antworten
+	 * loeschen.
+	 *
 	 * @param list<Formular> $formulare
 	 * @return list<Kurs>
 	 */
@@ -37,7 +42,13 @@ final class Kursliste {
 			self::legeAb($kurse[$kennung], $zerlegt->art, $formular);
 		}
 
-		return array_values($kurse);
+		$echteKurse = array_filter($kurse, self::hatEineHaelfte(...));
+
+		return array_values($echteKurse);
+	}
+
+	private static function hatEineHaelfte(Kurs $kurs): bool {
+		return $kurs->anmeldung !== null || $kurs->warteliste !== null;
 	}
 
 	/**

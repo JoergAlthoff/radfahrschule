@@ -39,6 +39,43 @@ class KurslisteTest extends TestCase {
 		$this->assertSame([], $kurse);
 	}
 
+	/**
+	 * Ein Formular, das weder Anmeldung noch Warteliste ist und zu keiner
+	 * gehoert, ist kein Kurs. Sonst stuende es in der Uebersicht und liesse
+	 * sich ueber "Kurs löschen" samt Antworten entfernen.
+	 */
+	public function testEinFremdesFormularIstKeinKurs(): void {
+		$kurse = Kursliste::ausFormularen([
+			new Formular(40, 'hash40', 'Mitgliederbefragung 2029', '', 12, 0),
+		], $this->titelmuster());
+
+		$this->assertSame([], $kurse);
+	}
+
+	/** Zwei fremde Formulare mit demselben Titel sind ebenso wenig einer. */
+	public function testZweiGleichnamigeFremdeFormulareSindKeinKurs(): void {
+		$kurse = Kursliste::ausFormularen([
+			new Formular(40, 'hash40', 'Mitgliederbefragung 2029', '', 12, 0),
+			new Formular(41, 'hash41', 'Mitgliederbefragung 2029', '', 3, 0),
+		], $this->titelmuster());
+
+		$this->assertSame([], $kurse);
+	}
+
+	/**
+	 * Neben einer Haelfte bleibt ein Formular ohne Art im Kurs. Es ist der
+	 * wahrscheinlichste Kandidat fuer die umbenannte andere Haelfte.
+	 */
+	public function testEinFormularOhneArtNebenEinerHaelfteBleibt(): void {
+		$kurse = Kursliste::ausFormularen([
+			new Formular(19, 'hash19', 'Radfahrschule Musterstadt — Anfängerkurs 12./13.09.2026', '', 6, 0),
+			new Formular(18, 'hash18', 'Anfängerkurs 12./13.09.2026', '', 2, 0),
+		], $this->titelmuster());
+
+		$this->assertCount(1, $kurse);
+		$this->assertSame(18, $kurse[0]->sonstiges?->id);
+	}
+
 	public function testAnmeldungenUndWartendeWerdenGetrenntGezaehlt(): void {
 		$kurse = Kursliste::ausFormularen($this->beispielformulare(), $this->titelmuster());
 

@@ -31,9 +31,10 @@ final class VerwaltungTest extends TestCase {
 		bool $vollstaendig = true,
 		bool $adresseGueltig = true,
 		string $antwortadresse = 'kurse@example.org',
+		string $basisUrl = 'https://cloud.example.org',
 	): Verwaltung {
 		$zugangsdaten = $this->createStub(Zugangsdaten::class);
-		$zugangsdaten->method('basisUrl')->willReturn('https://cloud.example.org');
+		$zugangsdaten->method('basisUrl')->willReturn($basisUrl);
 		$zugangsdaten->method('benutzer')->willReturn('radfahrschule');
 		$zugangsdaten->method('appPasswort')->willReturn($appPasswort);
 		$zugangsdaten->method('freigabeGruppe')->willReturn('Radfahrschule');
@@ -181,6 +182,37 @@ final class VerwaltungTest extends TestCase {
 		$this->assertSame('', $daten['zugangsfehler']);
 		$this->assertFalse($daten['zugangGeprueft'],
 			'Ohne Zugangsdaten darf gar kein Aufruf hinausgehen.');
+	}
+
+	public function testEineAdresseMitHttpsWirdNichtGemeldet(): void {
+		$daten = $this->seite('geheim')->getForm()->getParams();
+
+		$this->assertFalse($daten['adresseOhneHttps']);
+	}
+
+	/**
+	 * Ohne https gehen Dienstkonto und App-Passwort im Klartext hinaus. Die
+	 * Seite warnt, sperrt aber nicht: Eine Testinstanz im eigenen Netz hat
+	 * oft kein Zertifikat.
+	 */
+	public function testEineAdresseMitHttpWirdGemeldet(): void {
+		$daten = $this->seite('geheim', basisUrl: 'http://cloud.example.org')->getForm()->getParams();
+
+		$this->assertTrue($daten['adresseOhneHttps']);
+	}
+
+	/** Das Schema kennt keine Gross- und Kleinschreibung. */
+	public function testEinGrossgeschriebenesHttpsWirdNichtGemeldet(): void {
+		$daten = $this->seite('geheim', basisUrl: 'HTTPS://cloud.example.org')->getForm()->getParams();
+
+		$this->assertFalse($daten['adresseOhneHttps']);
+	}
+
+	/** Ein leeres Feld ist der Stand nach der Installation, kein Fehler. */
+	public function testEineLeereAdresseWirdNichtGemeldet(): void {
+		$daten = $this->seite('geheim', basisUrl: '')->getForm()->getParams();
+
+		$this->assertFalse($daten['adresseOhneHttps']);
 	}
 
 	public function testDieAntwortadresseStehtAufDerSeite(): void {

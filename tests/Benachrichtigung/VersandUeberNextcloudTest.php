@@ -80,6 +80,19 @@ final class VersandUeberNextcloudTest extends TestCase {
 		$this->assertTrue($gelungen);
 	}
 
+	/**
+	 * Der Name im Empfaengerfeld kommt aus dem oeffentlichen Formular. Er
+	 * steht oben in der Mail und folgt derselben Regel wie der Text.
+	 */
+	public function testDerNameImEmpfaengerfeldFolgtDerRegelFuerNamen(): void {
+		$mitLink = new Empfaenger('', 'evil.example/login', 'Muster', 'erika.muster@example.org');
+		$mail = $this->createMock(IMessage::class);
+		$mail->expects($this->once())->method('setTo')
+			->with(['erika.muster@example.org' => 'evilexamplelogin Muster']);
+
+		$this->versand($this->mailer($mail))->schicke($mitLink, $this->nachricht());
+	}
+
 	public function testDieAntwortadresseTraegtDenNamenDesVereins(): void {
 		$mail = $this->createMock(IMessage::class);
 		$mail->expects($this->once())->method('setReplyTo')

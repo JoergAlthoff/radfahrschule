@@ -18,6 +18,28 @@ use OCA\Radfahrschule\Formulare\Empfaenger;
  * Vorlagentext von Forms und verlangt genau einen Treffer.
  */
 final readonly class Nachricht {
+	/**
+	 * So viele Zeichen kommen hoechstens aus einem Feld der Abgabe in die
+	 * Mail. Ein echter Name passt immer hinein, ein eingeschleuster Text
+	 * kaum.
+	 */
+	public const HOECHSTLAENGE = 50;
+
+	/**
+	 * Alles ausser diesen Zeichen faellt aus einem Namen heraus: Buchstaben
+	 * jeder Sprache, Akzente als eigenes Zeichen, Leerzeichen, Bindestrich und
+	 * die beiden Apostrophe.
+	 *
+	 * Erlaubt wird, statt Verbotenes zu suchen. Eine Liste verbotener Muster
+	 * laesst Umschreibungen durch - "evil.example" wird in jedem Mailprogramm
+	 * ein Link, auch ohne "https://". Ohne Punkt, Schraegstrich und Ziffern
+	 * bleibt davon kein Link und keine Telefonnummer.
+	 */
+	private const NICHT_IM_NAMEN = "/[^\\p{L}\\p{M} '\u{2019}-]/u";
+
+	/** Leerzeichen jeder Art und Zeilenumbrueche. Sie werden zu einem Leerzeichen. */
+	private const TRENNER = '/[\\p{Z}\\r\\n\\t]+/u';
+
 	public function __construct(
 		public string $betreff,
 		public string $text,
@@ -39,12 +61,16 @@ final readonly class Nachricht {
 	 * Der fertige Betreff wird als Ganzes noch einmal einzeilig gemacht: Ein
 	 * Zeilenumbruch kann auch aus der Betreffvorlage selbst kommen, nicht
 	 * nur aus einem eingesetzten Wert.
+	 *
+	 * Die Angaben aus der Abgabe tippt ein Fremder ins oeffentliche
+	 * Formular. Sie gehen deshalb nur gefiltert und gekuerzt in die Mail,
+	 * siehe ausDerAbgabe().
 	 */
 	public function fuer(Empfaenger $empfaenger): self {
 		$werte = [
-			'{anrede}' => self::einzeilig($empfaenger->anrede),
-			'{vorname}' => self::einzeilig($empfaenger->vorname),
-			'{nachname}' => self::einzeilig($empfaenger->nachname),
+			'{anrede}' => self::ausDerAbgabe($empfaenger->anrede),
+			'{vorname}' => self::ausDerAbgabe($empfaenger->vorname),
+			'{nachname}' => self::ausDerAbgabe($empfaenger->nachname),
 			'{kursart}' => $this->kursart,
 			'{termin}' => $this->termin,
 			'{neuer_termin}' => $this->neuerTermin,
@@ -62,6 +88,22 @@ final readonly class Nachricht {
 	/** Ein leerer Text heisst: Diese Liste bekommt nichts. */
 	public function istLeer(): bool {
 		return trim($this->text) === '';
+	}
+
+	/**
+	 * Ein Name aus der Abgabe, so wie er in die Mail darf: nur die Zeichen
+	 * aus NICHT_IM_NAMEN, einzeilig, hoechstens HOECHSTLAENGE Zeichen.
+	 *
+	 * Oeffentlich, weil derselbe Name auch im Empfaengerfeld der Mail steht.
+	 *
+	 * Ungueltiges UTF-8 laesst sich nicht pruefen. preg_replace gibt dann null
+	 * zurueck, und der Wert faellt ganz weg.
+	 */
+	public static function ausDerAbgabe(string $wert): string {
+		$einzeilig = (string)preg_replace(self::TRENNER, ' ', $wert);
+		$gefiltert = (string)preg_replace(self::NICHT_IM_NAMEN, '', $einzeilig);
+		$ohneDoppelte = self::ohneDoppelteLeerzeichen($gefiltert);
+		return trim(mb_substr($ohneDoppelte, 0, self::HOECHSTLAENGE));
 	}
 
 	/**

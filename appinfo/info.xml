@@ -20,7 +20,7 @@
 	wieder entfernen. Schickt den Eingetragenen eine Nachricht, jedem eine
 	eigene Mail. Gedacht fuer einen kleinen Verein mit wenigen Kursen im
 	Jahr. Setzt die App Formulare voraus.]]></description>
-	<version>1.0.0</version>
+	<version>1.0.1</version>
 	<licence>agpl</licence>
 	<author>Joerg Althoff</author>
 	<namespace>Radfahrschule</namespace>

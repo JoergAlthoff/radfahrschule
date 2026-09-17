@@ -46,6 +46,13 @@ $urls = \OCP\Server::get(\OCP\IURLGenerator::class);
 			Das Passwort ist ein App-Passwort des Dienstkontos, kein
 			Anmeldepasswort.
 		</p>
+		<?php if ($_['adresseOhneHttps']) { ?>
+			<p class="rf-warnung">
+				<strong>Die Adresse beginnt nicht mit https://.</strong>
+				Dienstkonto und App-Passwort gehen dann unverschlüsselt über das
+				Netz. Das ist nur in einem eigenen Testnetz vertretbar.
+			</p>
+		<?php } ?>
 		<p>
 			<label for="radfahrschule-basis-url">Adresse der Instanz</label><br>
 			<input type="url" id="radfahrschule-basis-url" name="basisUrl"
