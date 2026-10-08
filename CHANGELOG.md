@@ -5,6 +5,14 @@ Alle nennenswerten Änderungen an dieser App stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Nummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.0.2] — 2026-10-08
+
+### Behoben
+
+- **Die App lief nicht unter Nextcloud 33.** Sie war nur für Nextcloud 32
+  freigegeben. Beim Upgrade auf 33 schaltet Nextcloud sie deshalb ab. Sie
+  ist jetzt für Nextcloud 32 bis 34 freigegeben.
+
 ## [1.0.1] — 2026-09-17
 
 ### Behoben
