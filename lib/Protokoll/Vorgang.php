@@ -326,6 +326,41 @@ final readonly class Vorgang {
 		);
 	}
 
+	/**
+	 * Wartende sind in die Anmeldung nachgerueckt.
+	 *
+	 * Nur Zahlen, im Feld grund. Wer nachgerueckt ist, steht in Forms und
+	 * gehoert nicht in dieses Protokoll. Ein Lauf, der anhalten musste,
+	 * traegt einen eigenen Namen, damit er sich beim Suchen abhebt.
+	 */
+	public static function nachgerueckt(
+		DateTimeImmutable $jetzt,
+		string $benutzer,
+		string $kennung,
+		string $kurstag,
+		int $anmeldungId,
+		int $wartelisteId,
+		int $nachgerueckt,
+		int $gescheitert,
+		int $uebrig,
+	): self {
+		$vollstaendig = $gescheitert === 0 && $uebrig === 0;
+
+		return new self(
+			zeitpunkt: self::inUtc($jetzt),
+			vorgang: $vollstaendig ? 'kurs.nachgerueckt' : 'kurs.nachruecken_abgebrochen',
+			benutzer: $benutzer,
+			kennung: $kennung,
+			kurstag: $kurstag,
+			anmeldungId: $anmeldungId,
+			wartelisteId: $wartelisteId,
+			plaetze: null,
+			anmeldungen: null,
+			grund: 'nachgerückt: ' . $nachgerueckt . ', gescheitert: ' . $gescheitert
+				. ', nicht mehr drangekommen: ' . $uebrig,
+		);
+	}
+
 	private static function inUtc(DateTimeImmutable $zeitpunkt): DateTimeImmutable {
 		return $zeitpunkt->setTimezone(new DateTimeZone('UTC'));
 	}

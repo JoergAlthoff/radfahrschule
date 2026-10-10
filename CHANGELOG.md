@@ -5,6 +5,29 @@ Alle nennenswerten Änderungen an dieser App stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Nummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unveröffentlicht]
+
+## [1.1.0] — 2026-10-10
+
+### Hinzugefügt
+
+- **Nachrücken von der Warteliste.** Auf der Kursseite gibt es den Knopf
+  „Nachrücken lassen". Er zeigt die Warteliste mit Name und Tag des
+  Eintrags. Wer angekreuzt wird, kommt in die Anmeldung und verschwindet
+  aus der Warteliste. Das geht bis zum Anmeldeschluss und nur, solange
+  Plätze frei sind. Sind mehr angekreuzt als Plätze frei, rückt niemand
+  nach, und die Seite bittet um eine neue Auswahl.
+
+### Geändert
+
+- **Die App ist ab Nextcloud 32 freigegeben, ohne enge Obergrenze.** Ein
+  Upgrade auf eine neuere Nextcloud schaltet sie nicht mehr wegen der
+  Versionsangabe ab.
+- Die README nennt Nextcloud ab 32.
+- **Die App liest für das Nachrücken ganze Abgaben.** Sie reicht sie an
+  das Anmeldeformular derselben Nextcloud weiter. Sie legt weiter keine
+  Teilnehmerdaten ab.
+
 ## [1.0.2] — 2026-10-08
 
 ### Behoben

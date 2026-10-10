@@ -113,4 +113,33 @@ interface Formulare {
 	 * @throws FormulareNichtErreichbar
 	 */
 	public function empfaenger(int $formularId): array;
+
+	/**
+	 * Alle Abgaben eines Formulars, jede mit allen Antworten.
+	 *
+	 * Die Reihenfolge ist nicht zugesagt. Wer eine braucht, sortiert selbst.
+	 *
+	 * @return list<Abgabe>
+	 * @throws FormulareNichtErreichbar
+	 */
+	public function abgaben(int $formularId): array;
+
+	/**
+	 * Reicht eine Abgabe als Dienstkonto ein.
+	 *
+	 * Auswahlfragen wollen die Nummer der Auswahlmoeglichkeit als
+	 * Zeichenkette, nicht ihren Text. Forms prueft Pflichtfelder,
+	 * Platzzahl und Ablauf selbst und lehnt mit einem Status ab 400 ab.
+	 *
+	 * @param array<int, list<string>> $antworten Fragen-ID zu den Werten
+	 * @throws FormulareNichtErreichbar
+	 */
+	public function abgabeEinreichen(int $formularId, array $antworten): void;
+
+	/**
+	 * Entfernt eine einzelne Abgabe. Es gibt keinen Papierkorb.
+	 *
+	 * @throws FormulareNichtErreichbar
+	 */
+	public function abgabeLoeschen(int $formularId, int $abgabeId): void;
 }

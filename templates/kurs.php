@@ -67,6 +67,8 @@ $urls = \OCP\Server::get(\OCP\IURLGenerator::class);
 				        formaction="<?php p($urls->linkToRoute('radfahrschule.benachrichtigen.formular')); ?>">Nachricht schreiben</button>
 				<button type="submit"
 				        formaction="<?php p($urls->linkToRoute('radfahrschule.verschieben.formular')); ?>">Termin verschieben</button>
+				<button type="submit"
+				        formaction="<?php p($urls->linkToRoute('radfahrschule.nachruecken.seite')); ?>">Nachrücken lassen</button>
 				<button type="submit" class="error">Kurs löschen</button>
 				<a class="button"
 				   href="<?php p($urls->linkToRoute('radfahrschule.uebersicht.index')); ?>">Zurück</a>

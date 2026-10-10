@@ -9,7 +9,8 @@ den Tag, an dem die Anmeldedaten gelöscht sein müssen. Kurse lassen sich auf
 einen anderen Termin verschieben und wieder entfernen; gelöscht wird von
 Hand, die App tut das nicht von selbst. Den Eingetragenen lässt sich eine
 Nachricht schicken. Beim Löschen eines Kurses geht auf Wunsch eine Absage
-hinaus, beim Verschieben eine Nachricht zum neuen Termin.
+hinaus, beim Verschieben eine Nachricht zum neuen Termin. Wartende lassen
+sich in die Anmeldung nachrücken, solange Plätze frei sind.
 
 Ohne die App macht das jemand von Hand — sechs Schritte je Kurs, und ein
 Vertippen bei der Jahreszahl fällt erst auf, wenn sich niemand anmeldet.
@@ -61,7 +62,7 @@ Die App steht im Nextcloud App Store. Unter
 Administrationseinstellungen → Apps → Organisation steht sie mit
 **Herunterladen und aktivieren**; Nextcloud holt das Archiv selbst.
 
-Sie braucht Nextcloud 32 und PHP 8.2 oder neuer.
+Sie braucht Nextcloud ab 32 und PHP 8.2 oder neuer.
 
 Danach einrichten unter **Administrationseinstellungen → Radfahrschule**.
 Drei Blöcke.
@@ -129,11 +130,30 @@ Web-Schnittstelle, wie ein Programm von außen. Dafür muss sie sich
 anmelden. Nextcloud speichert Passwörter so, dass niemand sie zurücklesen
 kann — also muss ein Mensch es einmal hineinkopieren.
 
+## Nachrücken von der Warteliste
+
+Auf der Kursseite zeigt „Nachrücken lassen" die Warteliste. Wer angekreuzt
+wird, kommt in die Anmeldung und verschwindet aus der Warteliste. Das geht
+bis zum Anmeldeschluss und nur, solange Plätze frei sind.
+
+Die Vorlagen müssen dafür zusammenpassen. Die Fragen in Anmeldung und
+Warteliste tragen dieselben technischen Namen. Die Anmeldung hat eine
+Platzzahl. Eine Frage ohne technischen Namen kann die App nicht übertragen.
+Dann lässt sie niemanden nachrücken und sagt, woran es liegt.
+
+Die nachgerückte Person bekommt die Bestätigungsmail der Anmeldung. Dafür
+braucht es zwei Dinge. Im Anmeldeformular ist die Bestätigungsmail
+eingeschaltet. In den Forms-Einstellungen der Nextcloud ist
+„Bestätigungs-E-Mails an Antwortende zulassen" an. Die Mail kommt nach ein
+paar Minuten, nicht sofort.
+
 ## Was die App mit Anmeldedaten tut
 
 **Für eine Nachricht liest sie vier Angaben:** Anrede, Vorname, Nachname,
-Mailadresse. Sonst nichts aus den Anmeldungen. Sie legt davon nichts ab,
-keine Tabelle, keine Datei. Jeder Empfänger bekommt eine eigene Mail;
+Mailadresse. Sonst nichts aus den Anmeldungen. Eine Ausnahme ist das
+Nachrücken: Dafür liest sie die ganze Abgabe aus der Warteliste und reicht
+sie an das Anmeldeformular derselben Nextcloud weiter. Sie legt davon nichts ab.
+Es gibt keine Tabelle und keine Datei. Jeder Empfänger bekommt eine eigene Mail;
 niemand sieht die Adresse eines anderen. Das Vorgangsprotokoll nennt nur
 die Zahl der verschickten Mails.
 

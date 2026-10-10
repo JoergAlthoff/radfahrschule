@@ -94,4 +94,44 @@ class FormularTest extends TestCase {
 
 		$this->assertNull($formular->oeffentlicherHash());
 	}
+
+	public function testDiePlatzzahlKommtAusMaxSubmissions(): void {
+		$formular = Formular::ausAntwort(['id' => 19, 'maxSubmissions' => 10, 'submissionCount' => 8]);
+
+		$this->assertSame(10, $formular->platzzahl);
+		$this->assertSame(2, $formular->freiePlaetze());
+	}
+
+	/** Forms schreibt null oder 0, wenn es keine Grenze gibt. */
+	public function testOhneGrenzeGibtEsKeinePlatzzahl(): void {
+		$ohneFeld = Formular::ausAntwort(['id' => 19]);
+		$mitNull = Formular::ausAntwort(['id' => 19, 'maxSubmissions' => 0]);
+		$mitEins = Formular::ausAntwort(['id' => 19, 'maxSubmissions' => 1]);
+
+		$this->assertNull($ohneFeld->platzzahl);
+		$this->assertNull($ohneFeld->freiePlaetze());
+		$this->assertNull($mitNull->platzzahl);
+		$this->assertSame(1, $mitEins->platzzahl);
+	}
+
+	public function testEinVollesFormularHatKeinenFreienPlatz(): void {
+		$genauVoll = Formular::ausAntwort(['id' => 19, 'maxSubmissions' => 10, 'submissionCount' => 10]);
+		$ueberfuellt = Formular::ausAntwort(['id' => 19, 'maxSubmissions' => 10, 'submissionCount' => 11]);
+
+		$this->assertSame(0, $genauVoll->freiePlaetze());
+		$this->assertSame(0, $ueberfuellt->freiePlaetze());
+	}
+
+	public function testEineFrageTraegtIhreAuswahlmoeglichkeiten(): void {
+		$formular = Formular::ausAntwort(['id' => 19, 'questions' => [
+			['id' => 4, 'name' => 'anrede', 'text' => 'Anrede', 'options' => [
+				['id' => 6722, 'text' => 'Frau'],
+				['id' => 6723, 'text' => 'Herr'],
+			]],
+			['id' => 5, 'name' => 'vorname', 'text' => 'Vorname', 'options' => []],
+		]]);
+
+		$this->assertSame([6722 => 'Frau', 6723 => 'Herr'], $formular->frageMitNamen('anrede')?->auswahl);
+		$this->assertSame([], $formular->frageMitNamen('vorname')?->auswahl);
+	}
 }

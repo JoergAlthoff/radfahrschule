@@ -29,6 +29,7 @@ final class RoutenattributeTest extends TestCase {
 		'AnlegenController::formular',
 		'BenachrichtigenController::verschickt',
 		'KursController::zeige',
+		'NachrueckenController::ergebnis',
 		'UebersichtController::index',
 	];
 
@@ -89,10 +90,10 @@ final class RoutenattributeTest extends TestCase {
 	 * waere gruen.
 	 */
 	public function testDieRoutenWerdenGefunden(): void {
-		$this->assertCount(14, $this->routen());
+		$this->assertCount(17, $this->routen());
 	}
 
-	public function testNurDieVierLesendenRoutenSindOhneCsrfPruefung(): void {
+	public function testNurDieFuenfLesendenRoutenSindOhneCsrfPruefung(): void {
 		$this->assertSame(self::OHNE_CSRF_PRUEFUNG, $this->routenMit(NoCSRFRequired::class));
 	}
 

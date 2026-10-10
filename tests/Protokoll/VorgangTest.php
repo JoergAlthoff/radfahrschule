@@ -224,4 +224,35 @@ final class VorgangTest extends TestCase {
 		$this->assertNull($vorgang->anmeldungen);
 		$this->assertNull($vorgang->anmeldungId);
 	}
+
+	public function testEinNachrueckenWirdMitZahlenProtokolliert(): void {
+		$vorgang = Vorgang::nachgerueckt(
+			jetzt: $this->zeitpunkt(),
+			benutzer: 'anna',
+			kennung: 'Anfängerkurs 12./13.09.2026',
+			kurstag: '2026-09-13',
+			anmeldungId: 19,
+			wartelisteId: 18,
+			nachgerueckt: 2,
+			gescheitert: 0,
+			uebrig: 0,
+		);
+
+		$this->assertSame('kurs.nachgerueckt', $vorgang->vorgang);
+		$this->assertSame('anna', $vorgang->benutzer);
+		$this->assertSame(19, $vorgang->anmeldungId);
+		$this->assertSame(18, $vorgang->wartelisteId);
+		$this->assertSame('nachgerückt: 2, gescheitert: 0, nicht mehr drangekommen: 0', $vorgang->grund);
+		$this->assertNull($vorgang->anmeldungen);
+	}
+
+	public function testEinAbgebrochenesNachrueckenHeisstAnders(): void {
+		$mitFehlschlag = Vorgang::nachgerueckt($this->zeitpunkt(), 'anna', 'K', '2026-09-13', 19, 18, 1, 1, 0);
+		$mitRest = Vorgang::nachgerueckt($this->zeitpunkt(), 'anna', 'K', '2026-09-13', 19, 18, 1, 0, 1);
+
+		$this->assertSame('kurs.nachruecken_abgebrochen', $mitFehlschlag->vorgang);
+		$this->assertSame('kurs.nachruecken_abgebrochen', $mitRest->vorgang);
+		$this->assertSame('nachgerückt: 1, gescheitert: 1, nicht mehr drangekommen: 0', $mitFehlschlag->grund);
+		$this->assertSame('nachgerückt: 1, gescheitert: 0, nicht mehr drangekommen: 1', $mitRest->grund);
+	}
 }

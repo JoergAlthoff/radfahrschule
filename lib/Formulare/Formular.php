@@ -25,6 +25,8 @@ final readonly class Formular {
 		public int $ablauf,
 		public array $fragen = [],
 		public array $freigaben = [],
+		/** Wie viele Abgaben das Formular annimmt. Null: keine Grenze. */
+		public ?int $platzzahl = null,
 	) {
 	}
 
@@ -42,6 +44,8 @@ final readonly class Formular {
 			$freigaben[] = Freigabe::ausAntwort((array)$eintrag);
 		}
 
+		$platzzahl = (int)($antwort['maxSubmissions'] ?? 0);
+
 		return new self(
 			id: (int)($antwort['id'] ?? 0),
 			hash: (string)($antwort['hash'] ?? ''),
@@ -53,6 +57,7 @@ final readonly class Formular {
 			ablauf: (int)($antwort['expires'] ?? 0),
 			fragen: $fragen,
 			freigaben: $freigaben,
+			platzzahl: $platzzahl > 0 ? $platzzahl : null,
 		);
 	}
 
@@ -64,6 +69,14 @@ final readonly class Formular {
 			}
 		}
 		return null;
+	}
+
+	/** Wie viele Abgaben noch passen. Null, wenn es keine Platzzahl gibt. */
+	public function freiePlaetze(): ?int {
+		if ($this->platzzahl === null) {
+			return null;
+		}
+		return max(0, $this->platzzahl - $this->abgaben);
 	}
 
 	/**

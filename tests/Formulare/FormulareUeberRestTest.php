@@ -154,11 +154,8 @@ class FormulareUeberRestTest extends TestCase {
 	 */
 	public function testDieTechnischeMeldungGehtInsLogUndNichtAufDieSeite(): void {
 		$gelogged = [];
-		$client = $this->createStub(IClient::class);
-		$client->method('get')->willThrowException(
-			new RuntimeException('cURL error 6: Could not resolve host: geheim.intern'));
-		$dienst = $this->createStub(IClientService::class);
-		$dienst->method('newClient')->willReturn($client);
+		$fehler = new RuntimeException('cURL error 6: Could not resolve host: geheim.intern');
+		$dienst = $this->dienstDerScheitert($fehler, null);
 
 		$anbindung = new FormulareUeberRest(
 			$dienst, $this->zugangsdaten(), $this->loggerDerMitschreibt($gelogged));
@@ -179,6 +176,50 @@ class FormulareUeberRestTest extends TestCase {
 		// Die Ursache steht als Text da - sonst waere sie ganz weg.
 		$this->assertSame(
 			RuntimeException::class . ': cURL error 6: Could not resolve host: geheim.intern',
+			$gelogged[0][1]['ursache'],
+		);
+	}
+
+	/**
+	 * Die Meldung des Clients traegt bei einer Antwort den Anfang des
+	 * Koerpers, und Forms zitiert darin eingereichte Werte.
+	 */
+	public function testMitAntwortStehtNurDerStatusImLog(): void {
+		$gelogged = [];
+		$fehler = new RuntimeException('Client error: 403 {"message":"Erika Muster"}');
+		$anbindung = new FormulareUeberRest(
+			$this->dienstDerScheitert($fehler, $this->antwortMit('', 403)),
+			$this->zugangsdaten(),
+			$this->loggerDerMitschreibt($gelogged),
+		);
+
+		try {
+			$anbindung->alleEigenen();
+		} catch (FormulareNichtErreichbar) {
+			// erwartet
+		}
+
+		$this->assertCount(1, $gelogged);
+		$this->assertSame(RuntimeException::class . ': HTTP 403', $gelogged[0][1]['ursache']);
+	}
+
+	public function testOhneAntwortBleibtDieMeldungImLog(): void {
+		$gelogged = [];
+		$fehler = new RuntimeException('cURL error 6: Could not resolve host');
+		$anbindung = new FormulareUeberRest(
+			$this->dienstDerScheitert($fehler, null),
+			$this->zugangsdaten(),
+			$this->loggerDerMitschreibt($gelogged),
+		);
+
+		try {
+			$anbindung->alleEigenen();
+		} catch (FormulareNichtErreichbar) {
+			// erwartet
+		}
+
+		$this->assertSame(
+			RuntimeException::class . ': cURL error 6: Could not resolve host',
 			$gelogged[0][1]['ursache'],
 		);
 	}
@@ -583,5 +624,102 @@ class FormulareUeberRestTest extends TestCase {
 			$this->dienstMit($this->antwortMit($koerper)), $this->zugangsdaten(), $this->logger());
 
 		$this->assertSame([], $anbindung->empfaenger(517));
+	}
+
+	public function testDieAbgabenKommenMitNummerZeitpunktUndAntworten(): void {
+		$koerper = json_encode(['ocs' => ['meta' => ['status' => 'ok'], 'data' => [
+			'filteredSubmissionsCount' => 1,
+			'questions' => [],
+			'submissions' => [[
+				'id' => 127,
+				'timestamp' => 1791629820,
+				'answers' => [
+					['questionId' => 9257, 'text' => 'Erika', 'questionName' => 'vorname'],
+				],
+			]],
+		]]], JSON_THROW_ON_ERROR);
+		$gesehen = null;
+
+		$anbindung = new FormulareUeberRest(
+			$this->dienstMit($this->antwortMit($koerper), $gesehen), $this->zugangsdaten(), $this->logger());
+		$abgaben = $anbindung->abgaben(18);
+
+		$this->assertCount(1, $abgaben);
+		$this->assertSame(127, $abgaben[0]->id);
+		$this->assertSame(1791629820, $abgaben[0]->zeitpunkt);
+		$this->assertSame(['Erika'], $abgaben[0]->antworten['vorname']);
+		$this->assertStringEndsWith('/ocs/v2.php/apps/forms/api/v3/forms/18/submissions', $gesehen['url']);
+	}
+
+	public function testEinreichenSchicktDieAntwortenAnDasFormular(): void {
+		$gesehen = null;
+		$antworten = [9245 => ['6722'], 9246 => ['Erika']];
+
+		$anbindung = $this->restMit(['ocs' => ['meta' => ['status' => 'ok'], 'data' => null]], $gesehen);
+		$anbindung->abgabeEinreichen(19, $antworten);
+
+		$this->assertSame('post', $gesehen['methode']);
+		$this->assertStringEndsWith('/ocs/v2.php/apps/forms/api/v3/forms/19/submissions', $gesehen['url']);
+		$this->assertSame(['answers' => $antworten], $gesehen['body']);
+	}
+
+	public function testLoeschenTrifftDieEinzelneAbgabe(): void {
+		$gesehen = null;
+
+		$anbindung = $this->restMit(['ocs' => ['meta' => ['status' => 'ok'], 'data' => 127]], $gesehen);
+		$anbindung->abgabeLoeschen(18, 127);
+
+		$this->assertSame('delete', $gesehen['methode']);
+		$this->assertStringEndsWith('/ocs/v2.php/apps/forms/api/v3/forms/18/submissions/127', $gesehen['url']);
+	}
+
+	/**
+	 * Ein volles Formular antwortet mit 403. Der Aufrufer muss das von
+	 * "keine Antwort" unterscheiden koennen: Nur im zweiten Fall ist
+	 * ungewiss, ob die Abgabe angekommen ist.
+	 */
+	public function testEineAblehnungTraegtDenStatus(): void {
+		$client = $this->createStub(IClient::class);
+		$client->method('post')->willThrowException(new RuntimeException('abgelehnt'));
+		$client->method('getResponseFromThrowable')->willReturn($this->antwortMit('', 403));
+		$dienst = $this->createStub(IClientService::class);
+		$dienst->method('newClient')->willReturn($client);
+
+		$anbindung = new FormulareUeberRest($dienst, $this->zugangsdaten(), $this->logger());
+
+		try {
+			$anbindung->abgabeEinreichen(19, [9246 => ['Erika']]);
+			$this->fail('Die Ablehnung kam nicht durch.');
+		} catch (FormulareNichtErreichbar $fehler) {
+			$this->assertSame(403, $fehler->status);
+			$this->assertTrue($fehler->istAblehnung());
+		}
+	}
+
+	public function testOhneAntwortGibtEsKeinenStatus(): void {
+		$ursache = new RuntimeException('keine Verbindung');
+		$client = $this->createStub(IClient::class);
+		$client->method('post')->willThrowException($ursache);
+		$client->method('getResponseFromThrowable')->willThrowException($ursache);
+		$dienst = $this->createStub(IClientService::class);
+		$dienst->method('newClient')->willReturn($client);
+
+		$anbindung = new FormulareUeberRest($dienst, $this->zugangsdaten(), $this->logger());
+
+		try {
+			$anbindung->abgabeEinreichen(19, [9246 => ['Erika']]);
+			$this->fail('Der Fehler kam nicht durch.');
+		} catch (FormulareNichtErreichbar $fehler) {
+			$this->assertNull($fehler->status);
+			$this->assertFalse($fehler->istAblehnung());
+		}
+	}
+
+	/** Nur 400 bis 499 ist eine Ablehnung. Bei 500 kann Forms schon geschrieben haben. */
+	public function testNurEinVierhunderterIstEineAblehnung(): void {
+		$this->assertFalse((new FormulareNichtErreichbar('x', 399))->istAblehnung());
+		$this->assertTrue((new FormulareNichtErreichbar('x', 400))->istAblehnung());
+		$this->assertTrue((new FormulareNichtErreichbar('x', 499))->istAblehnung());
+		$this->assertFalse((new FormulareNichtErreichbar('x', 500))->istAblehnung());
 	}
 }

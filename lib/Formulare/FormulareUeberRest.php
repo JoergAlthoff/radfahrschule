@@ -26,6 +26,7 @@ final readonly class FormulareUeberRest implements Formulare {
 	private const FRAGE = '/ocs/v2.php/apps/forms/api/v3/forms/%d/questions/%d';
 	private const FREIGABEN = '/ocs/v2.php/apps/forms/api/v3/forms/%d/shares';
 	private const ABGABEN = '/ocs/v2.php/apps/forms/api/v3/forms/%d/submissions';
+	private const ABGABE = '/ocs/v2.php/apps/forms/api/v3/forms/%d/submissions/%d';
 
 	/**
 	 * Was gesagt wird, wenn sich nichts Genaueres sagen laesst.
@@ -130,6 +131,39 @@ final readonly class FormulareUeberRest implements Formulare {
 	 * wenn eines mitkommt.
 	 */
 	public function empfaenger(int $formularId): array {
+		$empfaenger = [];
+		foreach ($this->abgabenliste($formularId) as $abgabe) {
+			$empfaenger[] = Empfaenger::ausAbgabe($abgabe);
+		}
+		return $empfaenger;
+	}
+
+	public function abgaben(int $formularId): array {
+		$abgaben = [];
+		foreach ($this->abgabenliste($formularId) as $abgabe) {
+			$abgaben[] = Abgabe::ausAntwort($abgabe);
+		}
+		return $abgaben;
+	}
+
+	public function abgabeEinreichen(int $formularId, array $antworten): void {
+		$this->rufe('post', sprintf(self::ABGABEN, $formularId), ['answers' => $antworten]);
+	}
+
+	public function abgabeLoeschen(int $formularId, int $abgabeId): void {
+		$this->rufe('delete', sprintf(self::ABGABE, $formularId, $abgabeId));
+	}
+
+	/**
+	 * Die Abgaben, wie Forms sie liefert.
+	 *
+	 * Ohne den Schluessel "submissions" ist das keine Abgabenliste. Eine
+	 * leere Liste daraus zu machen hiesse "niemand eingetragen".
+	 *
+	 * @return list<array<string, mixed>>
+	 * @throws FormulareNichtErreichbar
+	 */
+	private function abgabenliste(int $formularId): array {
 		$daten = $this->rufe('get', sprintf(self::ABGABEN, $formularId));
 
 		if (!array_key_exists('submissions', $daten)) {
@@ -137,11 +171,11 @@ final readonly class FormulareUeberRest implements Formulare {
 				'Forms lieferte für Formular %d keine Liste der Abgaben.', $formularId));
 		}
 
-		$empfaenger = [];
+		$liste = [];
 		foreach ((array)$daten['submissions'] as $abgabe) {
-			$empfaenger[] = Empfaenger::ausAbgabe((array)$abgabe);
+			$liste[] = (array)$abgabe;
 		}
-		return $empfaenger;
+		return $liste;
 	}
 
 	/**
@@ -195,18 +229,29 @@ final readonly class FormulareUeberRest implements Formulare {
 			// Nextclouds eigene Redigierung greift dort nicht: Sie
 			// vergleicht mit === gegen das Array, das der Client bekam,
 			// Guzzle baut sich aber ein neues.
+			// Hat Forms geantwortet, steht nur der Status im Log: Die Meldung
+			// des Clients traegt den Anfang des Antwortkoerpers, und Forms
+			// kann darin einen eingereichten Wert zitieren.
+			$status = $this->statusVon($client, $fehler);
 			$this->logger->error('Forms antwortete nicht.', [
 				'app' => 'radfahrschule',
 				'methode' => $methode,
 				'pfad' => $pfad,
-				'ursache' => $fehler::class . ': ' . $fehler->getMessage(),
+				'ursache' => $this->ursacheFuerDasLog($fehler, $status),
 			]);
 
-			throw new FormulareNichtErreichbar(
-				$this->grundFuer($client, $fehler), previous: $fehler);
+			throw new FormulareNichtErreichbar($this->grundFuer($status), $status, $fehler);
 		}
 
 		return $this->datenAus($response->getBody());
+	}
+
+	/** Klasse der Ausnahme und Grund. Mit Antwort nur der Status, sonst die Meldung. */
+	private function ursacheFuerDasLog(Throwable $fehler, ?int $status): string {
+		if ($status !== null) {
+			return $fehler::class . ': HTTP ' . $status;
+		}
+		return $fehler::class . ': ' . $fehler->getMessage();
 	}
 
 	/**
@@ -217,22 +262,10 @@ final readonly class FormulareUeberRest implements Formulare {
 	 * Adresse ab. Der HTTP-Status weiss es genauer. Ein falsches Konto gibt
 	 * 401, ein Pfad, den es nicht gibt, 404.
 	 *
-	 * getResponseFromThrowable wirft die Ausnahme laut Schnittstelle
-	 * weiter, wenn keine HTTP-Antwort dabei war. Das ist kein Sonderfall,
-	 * sondern der haeufigste: Ein unbekannter Name und eine abgewiesene
-	 * Verbindung kommen nie bis zu einem Status. Dann bleibt es beim
-	 * allgemeinen Satz.
-	 *
 	 * Ueber 403 und 5xx wird NICHTS behauptet. Ein 500 heisst, dass Forms
 	 * da ist und nicht kann - daraus folgt fuer die Zugangsdaten nichts.
 	 */
-	private function grundFuer(IClient $client, Throwable $fehler): string {
-		try {
-			$status = $client->getResponseFromThrowable($fehler)->getStatusCode();
-		} catch (Throwable) {
-			return self::ALLGEMEIN;
-		}
-
+	private function grundFuer(?int $status): string {
 		return match ($status) {
 			401 => 'Das Dienstkonto oder das App-Passwort stimmt nicht. Beides '
 				. 'steht in den Einstellungen. Das App-Passwort stellt '
@@ -242,6 +275,22 @@ final readonly class FormulareUeberRest implements Formulare {
 				. 'die App „Formulare" dort läuft.',
 			default => self::ALLGEMEIN,
 		};
+	}
+
+	/**
+	 * Der HTTP-Status der Antwort, oder null.
+	 *
+	 * getResponseFromThrowable wirft die Ausnahme laut Schnittstelle
+	 * weiter, wenn keine HTTP-Antwort dabei war. Das ist kein Sonderfall,
+	 * sondern der haeufigste: Ein unbekannter Name und eine abgewiesene
+	 * Verbindung kommen nie bis zu einem Status.
+	 */
+	private function statusVon(IClient $client, Throwable $fehler): ?int {
+		try {
+			return $client->getResponseFromThrowable($fehler)->getStatusCode();
+		} catch (Throwable) {
+			return null;
+		}
 	}
 
 	/**

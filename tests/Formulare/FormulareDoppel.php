@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Radfahrschule\Tests\Formulare;
 
+use OCA\Radfahrschule\Formulare\Abgabe;
 use OCA\Radfahrschule\Formulare\Empfaenger;
 use OCA\Radfahrschule\Formulare\Formular;
 use OCA\Radfahrschule\Formulare\Formulare;
@@ -50,6 +51,17 @@ final class FormulareDoppel implements Formulare {
 
 	/** @var array<int, list<Empfaenger>> die Eintraege je Formular */
 	private array $empfaengerJe = [];
+
+	/** @var array<int, list<Abgabe>> die Abgaben je Formular */
+	private array $abgabenJe = [];
+
+	/** @var array<int, list<array<int, list<string>>>> was je Formular eingereicht wurde */
+	public array $eingereicht = [];
+
+	/** Ab dem wievielten Einreichen Forms ablehnt. Null: nie. */
+	private ?int $einreichenAblehnenAb = null;
+
+	private int $einreichungen = 0;
 
 	/** @param list<Formular> $liste */
 	public function __construct(
@@ -178,6 +190,7 @@ final class FormulareDoppel implements Formulare {
 			ablauf: 0,
 			fragen: $vorlage->fragen,
 			freigaben: [],
+			platzzahl: $vorlage->platzzahl,
 		);
 		$this->vorrat[$id] = $klon;
 		$this->pruefeNachwirkung('formularKlonen:' . $vorlageId);
@@ -204,6 +217,7 @@ final class FormulareDoppel implements Formulare {
 			ablauf: (int)($felder['expires'] ?? $alt->ablauf),
 			fragen: $alt->fragen,
 			freigaben: $alt->freigaben,
+			platzzahl: $alt->platzzahl,
 		);
 		$this->pruefeNachwirkung('formularAendern:' . $id);
 	}
@@ -229,7 +243,7 @@ final class FormulareDoppel implements Formulare {
 			}
 			$fragen[] = $frage->id === $frageId
 				? new Frage($frage->id, $frage->name, $frage->text,
-					(string)($felder['description'] ?? $frage->beschreibung))
+					(string)($felder['description'] ?? $frage->beschreibung), $frage->auswahl)
 				: $frage;
 		}
 
@@ -242,6 +256,7 @@ final class FormulareDoppel implements Formulare {
 			ablauf: $alt->ablauf,
 			fragen: $fragen,
 			freigaben: $alt->freigaben,
+			platzzahl: $alt->platzzahl,
 		);
 		$this->pruefeNachwirkung('frageAendern:' . $formularId . '/' . $frageId);
 	}
@@ -272,6 +287,69 @@ final class FormulareDoppel implements Formulare {
 	public function empfaenger(int $formularId): array {
 		$this->merke('empfaenger:' . $formularId);
 		return $this->empfaengerJe[$formularId] ?? [];
+	}
+
+	/** @param list<Abgabe> $abgaben */
+	public function setzeAbgaben(int $formularId, array $abgaben): void {
+		$this->abgabenJe[$formularId] = $abgaben;
+	}
+
+	/**
+	 * Bildet nach, dass sich zwischendurch jemand ueber das oeffentliche
+	 * Formular anmeldet: Ab dem genannten Einreichen lehnt Forms mit 403 ab.
+	 */
+	public function laessEinreichenAblehnenAb(int $nummerDesAufrufs): void {
+		$this->einreichenAblehnenAb = $nummerDesAufrufs;
+	}
+
+	public function abgaben(int $formularId): array {
+		$this->merke('abgaben:' . $formularId);
+		return $this->abgabenJe[$formularId] ?? [];
+	}
+
+	/**
+	 * Zaehlt die Abgabe wirklich mit und lehnt ab, wenn das Formular voll
+	 * ist. Ein Doppel, das nur den Aufruf merkt, hielte die Pruefung auf
+	 * freie Plaetze nicht.
+	 */
+	public function abgabeEinreichen(int $formularId, array $antworten): void {
+		$aufruf = 'abgabeEinreichen:' . $formularId;
+		$this->merke($aufruf);
+		$this->einreichungen++;
+
+		$formular = $this->vorrat[$formularId] ?? throw new FormulareNichtErreichbar(
+			'Formular ' . $formularId . ' gibt es im Doppel nicht.', 404);
+		$abgelehnt = $this->einreichenAblehnenAb !== null
+			&& $this->einreichungen >= $this->einreichenAblehnenAb;
+		if ($abgelehnt || $formular->freiePlaetze() === 0) {
+			throw new FormulareNichtErreichbar('Testdoppel: Das Formular ist voll.', 403);
+		}
+
+		$this->eingereicht[$formularId][] = $antworten;
+		$this->vorrat[$formularId] = new Formular(
+			id: $formular->id,
+			hash: $formular->hash,
+			titel: $formular->titel,
+			beschreibung: $formular->beschreibung,
+			abgaben: $formular->abgaben + 1,
+			ablauf: $formular->ablauf,
+			fragen: $formular->fragen,
+			freigaben: $formular->freigaben,
+			platzzahl: $formular->platzzahl,
+		);
+		$this->pruefeNachwirkung($aufruf);
+	}
+
+	public function abgabeLoeschen(int $formularId, int $abgabeId): void {
+		$this->merke('abgabeLoeschen:' . $formularId . '/' . $abgabeId);
+
+		$bleiben = [];
+		foreach ($this->abgabenJe[$formularId] ?? [] as $abgabe) {
+			if ($abgabe->id !== $abgabeId) {
+				$bleiben[] = $abgabe;
+			}
+		}
+		$this->abgabenJe[$formularId] = $bleiben;
 	}
 
 	/**
