@@ -197,6 +197,10 @@ class KursController extends Controller {
 	 * @throws FormulareNichtErreichbar
 	 */
 	private function grundOhneAbsage(Kurs $kurs): string {
+		// Einen Kurs zu loeschen, der stattgefunden hat, ist keine Absage.
+		if ($kurs->istVorbei($this->jetzt())) {
+			return 'Der Kurs ist vorbei. Er wird ohne Absage gelöscht.';
+		}
 		if ($this->benachrichtigen->versandIstAbgeschaltet()) {
 			return 'Auf dieser Nextcloud ist der Mailversand abgeschaltet. Der Kurs '
 				. 'lässt sich trotzdem löschen, nur ohne Absage.';

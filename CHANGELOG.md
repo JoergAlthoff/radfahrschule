@@ -7,6 +7,15 @@ die Nummern folgen [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unveröffentlicht]
 
+## [1.1.1] — 2026-10-13
+
+### Behoben
+
+- **Ein Kurs, der vorbei ist, wird ohne Absage gelöscht.** Die Nachfrage vor
+  dem Löschen bot die Absage auch dann an, wenn der Kurs schon stattgefunden
+  hatte. Jetzt steht dort, dass ohne Absage gelöscht wird. Der letzte Kurstag
+  selbst zählt noch nicht als vorbei.
+
 ## [1.1.0] — 2026-10-10
 
 ### Hinzugefügt

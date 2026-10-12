@@ -82,6 +82,7 @@ final class KursControllerTest extends TestCase {
 		bool $sperreFrei = true,
 		array $einstellungen = [],
 		bool $versandAbgeschaltet = false,
+		string $jetztUtc = '2026-09-01 10:00:00',
 	): KursController {
 		$doppel ??= $this->bestand();
 
@@ -98,7 +99,7 @@ final class KursControllerTest extends TestCase {
 
 		$timeFactory = $this->createStub(ITimeFactory::class);
 		$timeFactory->method('now')->willReturn(
-			new DateTimeImmutable('2026-09-01 10:00:00', new DateTimeZone('UTC')));
+			new DateTimeImmutable($jetztUtc, new DateTimeZone('UTC')));
 
 		$lockingProvider = $this->createStub(ILockingProvider::class);
 		if (!$sperreFrei) {
@@ -445,6 +446,51 @@ final class KursControllerTest extends TestCase {
 			versandAbgeschaltet: true)->nachfrage()->getParams();
 
 		$this->assertStringContainsString('Mailversand abgeschaltet', $daten['grundOhneAbsage']);
+	}
+
+	/**
+	 * Einen Kurs zu loeschen, der schon stattgefunden hat, ist keine Absage.
+	 * 22:30 UTC am letzten Kurstag ist in Berlin schon der Tag danach.
+	 */
+	public function testNachDemLetztenKurstagNenntDieNachfrageDenGrund(): void {
+		$daten = $this->controller($this->bestandMitAdressen(),
+			felder: ['kennung' => 'Anfängerkurs 12./13.09.2026'],
+			jetztUtc: '2026-09-13 22:30:00')->nachfrage()->getParams();
+
+		$this->assertSame('Der Kurs ist vorbei. Er wird ohne Absage gelöscht.',
+			$daten['grundOhneAbsage']);
+	}
+
+	/** Der letzte Kurstag selbst zaehlt noch: 21:30 UTC ist in Berlin 23:30 Uhr. */
+	public function testAmLetztenKurstagBietetDieNachfrageDieAbsageAn(): void {
+		$daten = $this->controller($this->bestandMitAdressen(),
+			felder: ['kennung' => 'Anfängerkurs 12./13.09.2026'],
+			jetztUtc: '2026-09-13 21:30:00')->nachfrage()->getParams();
+
+		$this->assertSame('', $daten['grundOhneAbsage']);
+	}
+
+	/** Die Seite zeigt die Felder nicht, aber den POST kann jeder von Hand schicken. */
+	public function testNachDemLetztenKurstagWirdOhneAbsageGeloescht(): void {
+		$doppel = $this->bestandMitAdressen();
+
+		$antwort = $this->controller($doppel, felder: $this->absagefelder(),
+			jetztUtc: '2026-09-13 22:30:00')->loesche();
+
+		$this->assertSame('geloescht', $antwort->getTemplateName());
+		$this->assertSame([], $doppel->bestand());
+		$this->assertSame('', $antwort->getParams()['absage']);
+		$this->assertSame([], $this->versand->adressen());
+	}
+
+	public function testAmLetztenKurstagGehtDieAbsageNochHinaus(): void {
+		$doppel = $this->bestandMitAdressen();
+
+		$antwort = $this->controller($doppel, felder: $this->absagefelder(),
+			jetztUtc: '2026-09-13 21:30:00')->loesche();
+
+		$this->assertSame('geloescht', $antwort->getTemplateName());
+		$this->assertCount(2, $this->versand->adressen());
 	}
 
 	/** @return array<string, string> die Felder einer Absage an beide Listen */

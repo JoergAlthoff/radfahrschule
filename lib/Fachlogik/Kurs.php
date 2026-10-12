@@ -146,9 +146,23 @@ final class Kurs {
 			return '';
 		}
 
-		$zeitform = self::kalendertag($jetzt) > $this->letzterTag ? 'war' : 'ist';
+		$zeitform = $this->istVorbei($jetzt) ? 'war' : 'ist';
 
 		return 'Der Kurs ' . $zeitform . ' am ' . $this->kurstagDeutsch() . '.';
+	}
+
+	/**
+	 * Ob der letzte Kurstag vor heute liegt.
+	 *
+	 * Ein Kurs ohne lesbares Datum gilt nicht als vorbei: Ueber ihn ist
+	 * nichts bekannt.
+	 */
+	public function istVorbei(DateTimeImmutable $jetzt): bool {
+		if ($this->letzterTag === null) {
+			return false;
+		}
+
+		return self::kalendertag($jetzt) > $this->letzterTag;
 	}
 
 	public function kurstagDeutsch(): string {
